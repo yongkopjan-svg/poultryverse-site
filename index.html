@@ -1,0 +1,1637 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.setAttribute("data-theme", localStorage.pvTheme==="dark"?"dark":"light");</script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%2325503B'/><circle cx='16' cy='17' r='8' fill='%23E1A022'/><circle cx='13' cy='15' r='2' fill='%23FFF3D6' opacity='.8'/></svg>">
+<meta name="description" content="Poultryverse farm console — daily egg, feed, health and money records for a layer farm, with lay-curve, break-even and buyer analytics.">
+<title>Poultryverse — Farm Console</title>
+<style>
+:root{
+  --ink:#1C241D; --paper:#F2F4EC; --pine:#25503B; --yolk:#E1A022; --brick:#BF4530;
+  --moss:#5B7B63; --card:#FFFFFF; --line:#D8DDD0; --dim:#5D6459;
+  --track:#EDEFE3; --railBg:#1C241D; --railSel:#262f26; --railTxt:#B9C2B2; --railHi:#fff;
+  --railBrand:#9aa596; --railFoot:#7d877b; --railBorder:#3a4438; --onInk:#fff;
+}
+html[data-theme="dark"]{
+  --paper:#101511; --ink:#E8ECDF; --card:#1A211A; --line:#2A342A; --dim:#8B988A;
+  --track:#222B22; --railBg:#131813; --railSel:#232C21; --railTxt:#8F9C8D; --railHi:#fff;
+  --railBrand:#7E8D7C; --railFoot:#5F6B5E; --railBorder:#242E23; --onInk:#101511;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:"Bahnschrift","DIN Alternate",system-ui,sans-serif;
+  background:var(--paper); color:var(--ink);
+  display:grid; grid-template-columns:200px 1fr; min-height:100vh;
+}
+@media(max-width:820px){ body{grid-template-columns:1fr} }
+
+/* ---------- rail ---------- */
+nav{
+  position:sticky; top:0; align-self:start; height:100vh;
+  background:var(--railBg); color:var(--railTxt); padding:26px 0 16px;
+  display:flex; flex-direction:column; gap:2px;
+}
+@media(max-width:820px){ nav{position:relative;height:auto;flex-direction:row;overflow-x:auto;padding:10px} }
+.brand{padding:0 20px 22px; border-bottom:1px solid var(--railBorder); margin-bottom:14px}
+@media(max-width:820px){ .brand{padding:0 10px; border:none;margin:0} }
+.brand h1{font-family:Georgia,serif; font-size:19px; font-weight:400; color:#fff}
+.brand p{font-size:11px; color:var(--railBrand); margin-top:4px}
+nav a{
+  display:flex; align-items:center; gap:10px; padding:9px 20px;
+  color:var(--railTxt); text-decoration:none; font-size:13px; letter-spacing:.02em;
+  border-left:3px solid transparent; background:none; border-top:none; border-right:none; border-bottom:none;
+  font-family:inherit; width:100%; text-align:left; cursor:pointer;
+}
+@media(max-width:820px){ nav a{padding:8px 12px; border-left:none; border-bottom:3px solid transparent; white-space:nowrap;width:auto} }
+nav a:hover{color:#fff}
+nav a.on{color:#fff; border-left-color:var(--yolk); background:var(--railSel)}
+@media(max-width:820px){ nav a.on{border-left:none; border-bottom-color:var(--yolk)} }
+nav a .dot{width:7px;height:7px;border-radius:50%;background:var(--brick); display:none}
+nav a .dot.show{display:inline-block}
+.railfoot{margin-top:auto; padding:14px 20px; font-size:10.5px; color:var(--railFoot); border-top:1px solid #3a4438}
+@media(max-width:820px){ .railfoot{display:none} }
+
+/* ---------- main ---------- */
+main{padding:34px 44px 80px; max-width:1060px}
+@media(max-width:820px){ main{padding:20px 16px 60px} }
+section{padding-top:26px; display:none}
+section.on{display:block}
+.kicker{font-size:12px; color:var(--dim); font-weight:600; letter-spacing:.06em; margin-bottom:6px}
+h2{font-family:Georgia,serif; font-weight:400; font-size:30px; margin-bottom:20px}
+.addbtn{
+  float:right; margin-top:-44px; background:var(--pine); color:#fff; border:none; border-radius:4px;
+  padding:9px 16px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;
+}
+.addbtn:hover{background:#1D3F2E}
+
+/* today strip */
+.todayStrip{display:grid; gap:10px; margin-bottom:26px}
+.alertRow{
+  display:flex; gap:14px; align-items:center; background:var(--card);
+  border-left:4px solid var(--brick); padding:14px 18px; border-radius:4px;
+  box-shadow:0 1px 0 var(--line);
+}
+.alertRow.warn{border-left-color:var(--yolk)}
+.alertRow .sig{font-size:24px}
+.alertRow b{font-size:15px; display:block}
+.alertRow span{font-size:13px; color:var(--dim)}
+
+/* KPI */
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:20px}
+.kpi{background:var(--card); border-bottom:3px solid var(--line); padding:14px 16px; border-radius:4px}
+.kpi.hero{border-bottom-color:var(--yolk)}
+.kpi .n{font-size:34px; font-weight:600; letter-spacing:-.01em; line-height:1.05}
+.kpi .n small{font-size:15px; font-weight:500; color:var(--dim)}
+.kpi .l{font-size:11.5px; color:var(--dim); margin-top:6px; font-weight:600; letter-spacing:.05em}
+.kpi .s{font-size:12px; color:var(--moss); margin-top:2px}
+.kpi .s.bad{color:var(--brick)}
+
+/* cards */
+.card{background:var(--card); border-radius:4px; padding:20px 22px 14px; box-shadow:0 1px 0 var(--line); margin-bottom:14px}
+.card h3{font-size:14px; font-weight:650; letter-spacing:.03em; margin-bottom:12px}
+.card p.note{font-family:Georgia,serif; font-size:13.5px; color:var(--dim); margin-top:10px; line-height:1.5}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+@media(max-width:820px){ .grid2{grid-template-columns:1fr} }
+
+/* tables */
+table{width:100%; border-collapse:collapse; font-size:13px}
+th{font-size:10.5px; letter-spacing:.07em; color:var(--dim); text-align:left; padding:8px 10px; border-bottom:1px solid var(--ink)}
+td{padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+tr:hover td{background:#FAFBF6}
+td.act{white-space:nowrap; text-align:right}
+.iconbtn{background:none; border:1px solid var(--line); border-radius:3px; cursor:pointer; font-size:12px; padding:2px 7px; color:var(--dim)}
+.iconbtn:hover{border-color:var(--ink); color:var(--ink)}
+.iconbtn.del:hover{border-color:var(--brick); color:var(--brick)}
+.num{text-align:right; font-variant-numeric:tabular-nums}
+td .chip, span.chip{display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600}
+.chip.exp{background:#F3E4D8; color:#8C4A21}
+.chip.inc{background:#DFF0E2; color:#22572F}
+.chip.crit{background:#F6DCD5; color:var(--brick)}
+.chip.ok{background:#DFF0E2; color:#22572F}
+.chip.late{background:#F6E9CF; color:#6B4D08}
+.sr-only{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+.faint{color:var(--dim)}
+.wrap{overflow-x:auto}
+
+ul.tl{list-style:none; margin:6px 0 4px}
+ul.tl li{display:flex; gap:14px; padding:7px 0; border-bottom:1px dashed var(--line); font-size:13px; align-items:baseline}
+ul.tl .d{min-width:86px; color:var(--dim); font-variant-numeric:tabular-nums; flex-shrink:0}
+ul.tl .r{margin-left:auto; font-size:11.5px; font-variant-numeric:tabular-nums; color:var(--dim); flex-shrink:0; text-align:right}
+
+svg text{font-family:Bahnschrift,system-ui,sans-serif}
+:focus-visible{outline:2px solid var(--yolk); outline-offset:2px}
+
+/* print report */
+.printhead{display:none}
+@media print{
+  nav,#toast,dialog,.addbtn,.iconbtn{display:none!important}
+  body{grid-template-columns:1fr; background:#fff}
+  main{padding:0; max-width:none}
+  .kicker{margin-top:14px}
+  h2{font-size:20px; margin-bottom:10px}
+  section{display:block!important; page-break-before:always; padding-top:0}
+  .card{box-shadow:none; border:1px solid #cfd4c6; page-break-inside:avoid}
+  .printhead{display:block; border-bottom:2px solid var(--ink); padding-bottom:8px; margin-bottom:8px; font-family:Georgia,serif}
+  .printhead h1{font-size:18px; font-weight:400}
+  .printhead p{font-size:11px; color:#555}
+  tr,td,th{color:#000}
+  .alertRow{border:1px solid #cfd4c6}
+}
+
+/* ---------- form ---------- */
+@media(max-width:610px){
+  main{padding:12px}
+  h2{font-size:21px}
+  dialog{width:96vw; max-width:96vw}
+  .fbody{grid-template-columns:1fr; padding:14px}
+  .kpi .n{font-size:21px}
+  .kpi{padding:10px}
+  .fbody .full{grid-column:1}
+  input,select,textarea{font-size:16px} /* stop iOS zoom */
+  .alertRow b{font-size:13px}
+  .alertRow span{font-size:11.5px}
+}
+dialog{
+  border:none; border-radius:4px; padding:0; max-width:520px; width:92vw;
+  box-shadow:0 12px 40px rgba(20,30,20,.35);
+}
+dialog::backdrop{background:rgba(28,36,29,.45)}
+/* digest tile: one idea, two lines, a click to the deep write-up on Notes */
+.tile{border-left:3px solid var(--yolk); background:var(--track); border-radius:4px; padding:9px 12px; margin:10px 0; font-size:12.8px; line-height:1.55}
+.tile b{display:block; font-size:13px; margin-bottom:2px}
+.tile .cread{color:var(--pine); font-weight:650; cursor:pointer; font-size:12px; text-decoration:underline}
+html[data-theme="dark"] .tile .cread{color:#8fbf9e}
+.note-sec{scroll-margin-top:20px}
+.note-sec.flash{background:var(--track); border-radius:6px; outline:2px solid var(--yolk)}
+.fhead{background:var(--ink); color:var(--onInk); padding:14px 20px; font-size:15px; font-weight:650}
+.fhead small{display:block; font-weight:400; font-size:11px; color:var(--railBrand); margin-top:2px}
+.fbody{padding:16px 20px 18px; display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; max-height:70vh; overflow:auto}
+.fbody label{font-size:11px; font-weight:650; letter-spacing:.05em; color:var(--dim); display:grid; gap:4px}
+.fbody input,.fbody select,.fbody textarea{
+  font-family:inherit; font-size:13.5px; padding:7px 9px; border:1px solid var(--line); border-radius:3px; background:#FDFDF9; color:var(--ink)
+}
+.fbody input:focus,.fbody select:focus,.fbody textarea:focus{border-color:var(--pine); outline:none}
+.fbody .full{grid-column:1/-1}
+.ffoot{display:flex; gap:10px; justify-content:flex-end; padding:12px 20px; background:#FAFBF6; border-top:1px solid var(--line)}
+.ffoot button{font-family:inherit; font-size:13.5px; font-weight:650; border:none; border-radius:4px; padding:9px 18px; cursor:pointer}
+.ffoot .save{background:var(--pine); color:#fff}
+.ffoot .save:hover{background:#1D3F2E}
+.ffoot .cancel{background:none; color:var(--dim)}
+.ffoot button[type=del]{background:var(--brick); color:#fff; margin-right:auto}
+.savehint{grid-column:1/-1; font-size:12px; color:var(--moss); min-height:14px}
+
+/* toast */
+#toast{
+  position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+  background:var(--ink); color:var(--onInk); padding:10px 20px; border-radius:4px;
+  font-size:13px; font-weight:600; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
+  z-index:60; box-shadow:0 6px 20px rgba(20,30,20,.3);
+}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(-4px)}
+#toast.err{background:var(--brick)}
+@media(prefers-reduced-motion:no-preference){
+  .loadin{animation:rise .5s ease both}
+  @keyframes rise{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none}}
+}
+</style>
+</head>
+<body>
+<nav class="loadin">
+  <div class="brand"><h1>Poultryverse</h1><p id="farmline">farm console</p>
+<button id="themeBtn" type="button" onclick="toggleTheme()" title="switch light / dark" style="margin-top:10px;margin-left:20px;background:var(--railBorder);border:none;border-radius:4px;color:var(--railTxt);font-size:15px;padding:3px 10px;cursor:pointer">🌙</button></div>
+  <a href="#today" data-go="today" class="on">Today <span class="dot" id="dot-today"></span></a>
+  <a href="#plans" data-go="plans">Grow</a>
+  <a href="#money" data-go="money">Money</a>
+  <a href="#flock" data-go="flock">Birds &amp; health</a>
+  <a href="#eggs" data-go="eggs">Eggs</a>
+  <a href="#feed" data-go="feed">Feed</a>
+  <a href="#schedule" data-go="schedule">Vaccine log <span class="dot" id="dot-sched"></span></a>
+  <a href="#alerts" data-go="alerts">Alerts</a>
+  <a href="#ledger" data-go="ledger">Full ledger</a>
+  <a href="#notes" data-go="notes">Notes</a>
+  <div class="railfoot" id="railfoot"></div>
+</nav>
+<main>
+  <div class="printhead"><h1>Poultryverse — farm report</h1><p id="printline"></p></div>
+  <section id="today" class="on"><div style="display:flex;align-items:baseline;justify-content:space-between"><div class="kicker">needs eyes now</div></div><h2>Today on the farm <button class="addbtn" onclick="formRound()" style="background:var(--yolk);color:var(--ink)">☀ Morning round</button></h2><div id="roundHint" class="kicker" style="margin-bottom:14px"></div><div id="todayStrip" class="todayStrip"></div><div id="todayKpis" class="kpis"></div><div id="todayCharts"></div><div id="dataChecks" style="margin-top:20px"></div></section>
+  <section id="plans"><div class="kicker">the numbers behind the next 12 weeks</div><h2>Grow — plans &amp; statistics</h2><div id="planKpis" class="kpis"></div><div id="planCharts"></div><div id="planInsights"></div></section>
+  <section id="money"><div class="kicker">since May 2026 — record every naira same day</div><h2>Money <button class="addbtn" onclick="formFin()">+ Money in / out</button> <button class="addbtn" onclick="backupNow()">⇩ Back up now</button></h2><div id="moneyKpis" class="kpis"></div><div id="cashFlow" style="margin-bottom:20px"></div><div id="moneyCharts"></div></section>
+  <section id="flock"><div class="kicker" id="flockkick"></div><h2>Flock &amp; health <button class="addbtn" onclick="formHealth()">+ Health event</button></h2><div id="flockKpis" class="kpis"></div><div id="flockCharts"></div></section>
+  <section id="eggs"><div class="kicker">collected · sold · the lay story — plain first: <b>lay %</b> is eggs per 100 birds per day; 90 is strong, 60 needs checking</div><h2>Eggs <button class="addbtn" onclick="formEgg()">+ Add collection</button></h2><div id="eggKpis" class="kpis" style="margin-bottom:16px"></div><div id="eggStats"></div><div class="card"><h3>Egg log <button class="iconbtn" style="float:right" onclick="formEgg()">+ Add collection</button></h3><div id="eggTable"></div></div><div id="buyerSheet" style="margin-top:20px"></div><div id="buyerBook" style="margin-top:20px"></div></section>
+  <section id="feed"><div class="kicker">in store · burn — plain first: <b>g/bird/day</b> is grams one bird eats per day; the breed guide prints its number for every week</div><h2>Feed <button class="addbtn" onclick="formFeed()">+ Feed restock</button></h2><div id="feedKpis" class="kpis"></div><div id="feedCharts"></div></section>
+  <section id="notes"><div class="kicker">the why behind every number — short sections, plain words</div><h2>Notes</h2><div id="notesWrap"></div></section>
+  <section id="schedule"><div class="kicker">hatch to point of lay</div><h2>Vaccine &amp; task log <button class="addbtn" onclick="formSched()">+ Schedule item</button></h2><div id="schedWrap"></div></section>
+  <section id="alerts"><div class="kicker">recorded by PoultryVerse AI</div><h2>Alert history</h2><div id="alertsWrap"></div></section>
+  <section id="ledger"><div class="kicker">loans · reminders · everything stored</div><h2>Loans, reminders &amp; ledger <button class="addbtn" onclick="formLoan()">+ Loan</button></h2><div id="ledgerWrap"></div></section>
+</main>
+
+<dialog id="dlg" aria-modal="true">
+  <div class="fhead" id="dlgTitle"></div>
+  <div class="fbody" id="dlgBody"></div>
+  <div class="ffoot">
+    <button type="del" id="dlgDel" hidden>Delete record</button>
+    <button class="cancel" id="dlgCancel" type="button">Cancel</button>
+    <button class="save" id="dlgSave">Save</button>
+  </div>
+</dialog>
+<div id="toast" role="status"></div>
+
+<script src="data.js"></script>
+<script>
+/* ================= state ================= */
+const SEED = window.__DATA__;          // immutable seed
+let P = null;                          // live working copy
+const N = n => "\u20A6" + Math.round(n).toLocaleString("en-NG");
+const D = s => !s ? "\u2014" : String(s).slice(0,10);
+const EGG = String.fromCodePoint(0x1F95A), CHICK = String.fromCodePoint(0x1F414), HAND = String.fromCodePoint(0x1F91A);
+
+async function load(){
+  try{
+    const r = await fetch("/api/data");
+    if(!r.ok) throw 0;
+    P = await r.json();
+  }catch(e){
+    P = JSON.parse(JSON.stringify(SEED));  // offline fallback — read-only
+    SERVER = false;
+  }
+  const n=syncAllEggSales();             // money row per egg sale, born here
+  rerender();
+  if(n>0){ if(SERVER){ try{ await fetch("/api/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(P)}); toast(n+" egg sale row"+(n>1?"s":"")+" added to the money log"); }catch(e){} } }
+}
+let SERVER = true, saveQ = Promise.resolve();
+function save(){
+  if(!SERVER) return toast("offline copy — changes not saved", true);
+  saveQ = saveQ.then(async ()=>{
+    try{
+      const r = await fetch("/api/save", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(P)});
+      if(!r.ok) throw 0;
+      toast("saved to farm-live.json");
+      rerender();
+    }catch(e){ toast("save failed — is server.py running?", true); }
+  });
+  return saveQ;
+}
+function toast(msg, err){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.classList.toggle("err", !!err); t.classList.add("show");
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+/* sync egg sales -> finance income (single source: the egg record) */
+function syncEggSale(e){
+  const set=P.pv_settings, crates=set.eggsPerCrate||30;
+  const perEgg=(e.pricePerCrate||set.defaultCratePrice||4500)/crates;
+  const total=Math.round((e.soldCrates||0)*e.pricePerCrate + (e.soldLoose||0)*perEgg);
+  const link="egg:"+e.id;
+  const idx=(P.pv_financials||[]).findIndex(f=>f.linkId===link);
+  const sold=(e.soldCrates||0)>0||(e.soldLoose||0)>0;
+  if(sold&&total>0){
+    const note=`egg sale ${D(e.date)} — ${(e.soldCrates||0).toFixed(2)} crates (${Math.round((e.soldCrates||0)*crates)} eggs)${e.soldLoose?" + "+e.soldLoose+" loose":""}${e.buyer?" · "+e.buyer:""} @ ${N(e.pricePerCrate||4500)}/crate`;
+    let f=idx>=0?P.pv_financials[idx]:null;
+    if(!f){
+      f={id:newId(), date:e.date, type:"income", category:"Egg sales", amount:total, note, source:"manual", batchId:e.batchId, linkId:link, version:1};
+      P.pv_financials.push(f); return 1;
+    }
+    if(f.amount!==total||f.date!==e.date){ f.amount=total; f.date=e.date; f.note=note; stamp(f); return 1; }
+  } else if(idx>=0){ P.pv_financials.splice(idx,1); return 1; }
+  return 0;
+}
+function syncAllEggSales(){ let n=0; (P.pv_egg_log||[]).forEach(e=>{n+=syncEggSale(e);}); return n; }
+
+/* buyer book — the people who buy the crates, called BEFORE lay peaks */
+function formBuyer(id){
+  const r=id&&(P.pv_buyers||[]).find(x=>x.id===id);
+  EDITOR={validate:()=>val("Name")&&String(val("Name")).trim()?{ok:true}:{ok:false,msg:"buyer needs a name"},
+    commit:()=>{const o=r||{id:newId(),version:1};
+      Object.assign(o,{name:String(val("Name")).trim(),phone:val("Phone")||"",pricePerCrate:num("PricePerCrate")||M.set.defaultCratePrice,note:val("Note")||""});
+      stamp(o); if(!r){P.pv_buyers=P.pv_buyers||[]; P.pv_buyers.push(o);} save();}};
+  openDlg(r?"Edit buyer":"Add a buyer","call them BEFORE the crates pile up — target 5 names",
+    fld("Name","text",r?r.name:"")+fld("Phone","tel",r?r.phone:"",{extra:'placeholder="0803 555 0123"'})+
+    fld("PricePerCrate","number",r?r.pricePerCrate:"")+fld("Note","area",r?r.note:"",{extra:'placeholder="days they buy, where, who to call first"'}),
+    r,()=>delRec("pv_buyers",r.id,true));
+}
+function formBuyerSale(bid){
+  const b=(P.pv_buyers||[]).find(x=>x.id===bid);
+  const price=(b&&b.pricePerCrate)||M.set.defaultCratePrice;
+  EDITOR={validate:()=>{
+      if(num("SoldCrates")<=0&&num("SoldLoose")<=0) return {ok:false,msg:"log at least some crates or loose eggs"};
+      const d=val("Date");
+      if(d&&d>new Date().toISOString().slice(0,10)) return {ok:false,msg:"that date is in the future — use the real day"};
+      return {ok:true};
+    },
+    commit:()=>{
+      const date=val("Date")||new Date().toISOString().slice(0,10), sc=num("SoldCrates"), sl=num("SoldLoose"), pc=num("PricePerCrate")||price;
+      let e=P.pv_egg_log.find(x=>D(x.date)===date&&x.batchId===P.pv_batches[0].id&&(!x.buyer||x.buyer===b.name));
+      if(!e){ e={id:newId(),batchId:P.pv_batches[0].id,collectedCrates:0,collectedLoose:0,soldCrates:0,soldLoose:0,broken:0,ownUse:0,pricePerCrate:pc,buyer:b.name,notes:"",version:1}; P.pv_egg_log.push(e); }
+      e.soldCrates=(e.soldCrates||0)+sc; e.soldLoose=(e.soldLoose||0)+sl;
+      e.pricePerCrate=pc; e.buyer=b.name;
+      stamp(e); syncEggSale(e); save();
+    }};
+  openDlg("Sold to "+b.name,"the money row files itself — egg log stays the single source of truth",
+    fld("Date","date",new Date().toISOString().slice(0,10))+
+    fld("SoldCrates","number","",{extra:'step="0.01" placeholder="how many crates — 0.5 = 15 eggs"'})+
+    fld("SoldLoose","number","",{extra:'placeholder="loose eggs, not crate"'})+
+    fld("PricePerCrate","number",price)+
+    fld("Note","area","",{extra:'placeholder="paid cash / transferred / owes?"'}),
+    null,null);
+}
+function buyersUI(){
+  const bs=P.pv_buyers||[], set=P.pv_settings;
+  const rows=bs.map(b=>{
+    const es=(P.pv_egg_log||[]).filter(e=>e.buyer===b.name);
+    const val3=es.reduce((a,e)=>a+Math.round((e.soldCrates||0)*(e.pricePerCrate||b.pricePerCrate||set.defaultCratePrice)+(e.soldLoose||0)*((e.pricePerCrate||b.pricePerCrate||4500)/(set.eggsPerCrate||30))),0);
+    const last=es.map(e=>e.date).sort().pop();
+    return `<tr data-row="buyers"><td><b>${b.name}</b>${b.note?`<div class="faint" style="font-size:11px">${b.note}</div>`:""}</td><td>${b.phone?`<a href="tel:${b.phone}" style="color:var(--pine)">${b.phone}</a>`:'<span class="faint">no phone</span>'}</td><td class="num">${N(b.pricePerCrate||set.defaultCratePrice)}</td><td class="num">${val3?N(val3):'<span class="faint">nothing yet</span>'}</td><td class="num">${last?D(last):'<span class="faint">—</span>'}</td><td class="act"><button class="addbtn" style="background:var(--yolk);color:var(--ink)" onclick="formBuyerSale('${b.id}')">sold today</button> <button class="iconbtn" onclick="formBuyer('${b.id}')">edit</button> <button class="iconbtn del" onclick="delRec('pv_buyers','${b.id}',true)">del</button></td></tr>`;
+  }).join("");
+  return `<div class="card"><h3>Buyer book — who takes the crates <button class="addbtn" style="background:var(--yolk);color:var(--ink)" onclick="formBuyer()">+ Add buyer</button></h3>
+  ${bs.length?`<table><tr><th>Buyer</th><th>Phone</th><th class="num">₦/crate</th><th class="num">Sold so far</th><th class="num">Last sale</th><th></th></tr>${rows}</table>`:`<p style="font-size:13.5px;margin:8px 0">No buyers yet. <b>Five names with phones</b> before the crates pile up — <a class="cread" data-note="sec-buyers">the plan on Notes</a>.</p>`}
+  ${(P.pv_egg_log||[]).some(e=>(e.soldCrates||0)+(e.soldLoose||0)>0)?`<p class="note">Sales land in the egg log first; the money row copies itself — one source of truth.</p>`:`<p class="note">Log a sale with "sold today" and this card starts paying rent.</p>`}</div>`;
+}
+
+/* ================= derived ================= */
+function derive(){
+  const batch=P.pv_batches[0], set=P.pv_settings, farm=P.pv_farm;
+  const start=new Date(batch.startDate), TODAY=new Date(P.__exported||new Date().toISOString());
+  const age=d=>Math.round((new Date(d)-start)/864e5);
+  const todayAge=Math.max(0,Math.round((Date.now()-start)/864e5));
+  const fin=P.pv_financials||[];
+  const spentRaw=fin.filter(r=>r.type==="expense").reduce((a,r)=>a+r.amount,0);
+  const earned=fin.filter(r=>r.type==="income").reduce((a,r)=>a+r.amount,0);
+  const cats={}; fin.forEach(r=>{cats[r.category]=(cats[r.category]||0)+r.amount;});
+  /* feed basis: the phone keeps feed money in two drawers — cash rows vs restock log.
+     "money" counts the cash ledger; "restock" trusts the itemised purchase log instead. */
+  const feedLogCost=(P.pv_feed_log||[]).reduce((a,r)=>a+(r.cost||0),0);
+  const feedFinCost=cats.Feed||0;
+  const feedBasis=(P.__feedBasis==="restock")?"restock":(P.__feedBasis==="both")?"both":"money";
+  const spent= feedBasis==="restock"? spentRaw-feedFinCost+feedLogCost : feedBasis==="both"? spentRaw+feedLogCost : spentRaw;
+  const cats2=Object.assign({},cats);
+  if(feedBasis==="restock") cats2.Feed=feedLogCost;
+  if(feedBasis==="both") cats2.Feed=feedFinCost+feedLogCost;
+  const mort=(P.pv_health_log||[]).filter(h=>h.eventType==="Mortality");
+  const mortBirds=mort.reduce((a,h)=>a+(parseFloat(h.dosage)||0),0);
+  const feedT=(Array.isArray((P.pv_feed||{}).types)?P.pv_feed.types[0]:P.pv_feed?.types)||{};
+  const feedKg=feedT.stockKg||0, perDay=feedT.dailyKg||0;
+  const dSince=Math.max(0,Math.round((Date.now()-new Date(feedT.asOf||feedT.lastRestock||Date.now()))/864e5));
+  const daysLeft=Math.max(0,feedKg-perDay*dSince)/(perDay||1);
+  const eggs=P.pv_egg_log||[];
+  const eggsTotal=Math.round(eggs.reduce((a,r)=>a+r.collectedCrates*set.eggsPerCrate+r.collectedLoose,0));
+  const eggsSold=Math.round(eggs.reduce((a,r)=>a+r.soldCrates*set.eggsPerCrate+r.soldLoose,0));
+  const eggsBroken=eggs.reduce((a,r)=>a+(+r.broken||0),0);
+  const loans=P.pv_loans||[], loansOpen=loans.filter(l=>!l.paid);
+  const sched=(P.pv_schedule||[]).slice().sort((a,b)=>a.day-b.day);
+  const late=sched.filter(s=>s.done&&s.doneDate&&D(s.doneDate)>D(s.date));
+  return {batch,set,farm,start,TODAY,age,todayAge,fin,spent,earned,cats:cats2,catsRaw:cats,mort,mortBirds,feedT,feedKg,perDay,daysLeft,eggs,eggsTotal,eggsSold,eggsBroken,loans,loansOpen,sched,late,feedBasis,feedLogCost,feedFinCost};
+}
+let M=null;
+
+/* ================= chart helpers ================= */
+function hbar(rows, fmt){
+  const max=Math.max(...rows.map(r=>Math.abs(r[2])),1);
+  return `<table style="margin-top:4px"><tr><th scope="col" class="sr-only">Item</th><th scope="col" class="sr-only">Bar</th><th scope="col" class="sr-only">Value</th></tr>${rows.map(r=>`
+    <tr><td style="width:34%;border:none;padding:6px 10px 6px 0;font-size:12.5px">${r[0]}</td>
+    <td style="border:none"><div style="height:14px;background:var(--track);border-radius:2px">
+    <div style="height:14px;border-radius:2px;background:${r[3]||'var(--pine)'};width:${Math.max(0,r[2])/max*100}%"></div></div></td>
+    <td class="num" style="border:none;padding-left:10px;white-space:nowrap;font-size:12.5px;width:24%">${fmt(r[2])}</td></tr>`).join("")}</table>`;
+}
+function lineChart(svgW, svgH, pts){
+  const pad={l:8,r:8,t:10,b:18};
+  const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+  const y0=Math.min(0,...ys), y1=Math.max(...ys);
+  const x=v=>pad.l+(v-Math.min(...xs))/((Math.max(...xs)-Math.min(...xs))||1)*(svgW-pad.l-pad.r);
+  const y=v=>svgH-pad.b-((v-y0)/((y1-y0)||1))*(svgH-pad.t-pad.b);
+  const path=pts.map((p,i)=>(i?"L":"M")+x(p[0]).toFixed(1)+","+y(p[1]).toFixed(1)).join(" ");
+  const area=path+` L${x(pts[pts.length-1][0]).toFixed(1)},${y(Math.max(0,y0))} L${x(pts[0][0]).toFixed(1)},${y(Math.max(0,y0))} Z`;
+  const zeros=y0<0?`<line x1="${pad.l}" y1="${y(0)}" x2="${svgW-pad.r}" y2="${y(0)}" stroke="var(--ink)" stroke-width="1" opacity=".5"/>`:"";
+  const step=Math.max(1,Math.ceil(pts.length/7));
+  const marks=pts.filter((_,i)=>i%step===0||i===pts.length-1).map(p=>
+    `<text x="${x(p[0])}" y="${svgH-3}" font-size="9" fill="var(--dim)" text-anchor="middle">${p[2]}</text>`).join("");
+  return `<svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;display:block"><path d="${area}" fill="var(--pine)" opacity=".08"/><path d="${path}" fill="none" stroke="var(--pine)" stroke-width="2"/>${zeros}${marks}</svg>`;
+}
+function monthBars(){
+  const m={};
+  M.fin.slice().sort((a,b)=>a.date<b.date?-1:1).forEach(r=>{const k=r.date.slice(0,7); m[k]=m[k]||{i:0,e:0,f:0}; r.type==="income"?m[k].i+=r.amount:(r.type==="expense"&&r.category==="Feed"?m[k].feedNote=1:m[k].e+=r.amount);});
+  /* feed purchase log joins the bars per the drawer basis: "both" stacks it on the cash rows,
+     "restock" replaces the feed money rows with the log, "money" ignores the log */
+  const logM={};
+  (P.pv_feed_log||[]).forEach(r=>{if(!r.cost)return; const k=(r.date||"").slice(0,7); if(k) logM[k]=(logM[k]||0)+r.cost;});
+  const feedCash={};
+  M.fin.forEach(r=>{if(r.type==="expense"&&r.category==="Feed"){const k=r.date.slice(0,7); feedCash[k]=(feedCash[k]||0)+r.amount;}});
+  const basis=M.feedBasis;
+  Object.keys(logM).forEach(k=>{m[k]=m[k]||{i:0,e:0,f:0}; m[k].f= basis==="restock"? logM[k] : basis==="both"? logM[k] : 0;});
+  if(basis==="restock") Object.keys(feedCash).forEach(k=>{if(m[k]) m[k].e-=feedCash[k];});
+  Object.keys(m).forEach(k=>{m[k].f=m[k].f||0; if(m[k].e<0)m[k].e=0;});
+  const keys=Object.keys(m).sort();
+  const max=Math.max(...keys.map(k=>Math.max(m[k].e+m[k].f,m[k].i)),1);
+  const H=120,W=440,bw=W/keys.length*.52;
+  return `<svg viewBox="0 0 ${W} ${H+16}" style="width:100%;display:block">`+keys.map((k,i)=>{
+    const x=i*(W/keys.length)+(W/keys.length-bw)/2;
+    const hE=m[k].e/max*H, hF=m[k].f/max*H;
+    return `<g><rect x="${x}" y="${H-hE}" width="${bw}" height="${hE}" fill="#E4C79A" stroke="#C89B62" stroke-width=".5"/>`+
+    (m[k].f?`<rect x="${x}" y="${H-hE-hF}" width="${bw}" height="${hF}" fill="#C89B62" opacity=".9"/>`:"")+
+    (m[k].i?`<rect x="${x}" y="${H-m[k].i/max*H}" width="${bw}" height="${m[k].i/max*H}" fill="var(--pine)"/>`:"")+
+    `<text x="${x+bw/2}" y="${H+12}" font-size="9" fill="var(--dim)" text-anchor="middle">${k.slice(2)}</text></g>`;
+  }).join("")+`<line x1="0" y1="${H}" x2="${W}" y2="${H}" stroke="var(--ink)" stroke-width="1"/>
+  <rect x="${W-90}" y="6" width="9" height="9" fill="#E4C79A" stroke="#C89B62" stroke-width=".5"/><text x="${W-78}" y="14" font-size="8.5" fill="var(--dim)">cash-book out</text>
+  <rect x="${W-90}" y="18" width="9" height="9" fill="#C89B62"/><text x="${W-78}" y="26" font-size="8.5" fill="var(--dim)">feed log buys</text>
+  <rect x="${W-90}" y="30" width="9" height="9" fill="var(--pine)"/><text x="${W-78}" y="38" font-size="8.5" fill="var(--dim)">money in</text></svg>`;
+}
+function monthTable(){
+  const m={}; const feedCash={};
+  M.fin.forEach(r=>{const k=(r.date||"").slice(0,7); if(!k)return; m[k]=m[k]||{o:0,i:0,f:0};
+    if(r.type==="income") m[k].i+=r.amount;
+    else if(r.type==="expense"){ m[k].o+=r.amount; if(r.category==="Feed") feedCash[k]=(feedCash[k]||0)+r.amount; }});
+  Object.keys(m).forEach(k=>{
+    let fb=0; (P.pv_feed_log||[]).forEach(r=>{ if((r.date||"").slice(0,7)===k) fb+=r.cost||0; });
+    m[k].f=fb;
+    m[k].t=M.feedBasis==="both"? m[k].o+fb : M.feedBasis==="restock"? m[k].o-(feedCash[k]||0)+fb : m[k].o;
+  });
+  const keys=Object.keys(m).sort();
+  const tot=keys.reduce((a,k)=>({o:a.o+m[k].o,f:a.f+m[k].f,t:a.t+m[k].t,i:a.i+m[k].i}),{o:0,f:0,t:0,i:0});
+  const row=k=>{const x=m[k];return `<tr><td><b>${k.slice(2)}</b></td><td class="num">${N(x.o)}</td><td class="num">${x.f?N(x.f):'<span class="faint">—</span>'}</td><td class="num"><b>${N(x.t)}</b></td><td class="num">${x.i?N(x.i):'<span class="faint">—</span>'}</td></tr>`;};
+  return `<table><tr><th>Month</th><th class="num">Money out (cash book)</th><th class="num">+ feed-log buys</th><th class="num">Total out (${M.feedBasis})</th><th class="num">Money in</th></tr>
+  ${keys.map(row).join("")}
+  <tr style="border-top:2px solid var(--ink)"><td><b>ALL</b></td><td class="num"><b>${N(tot.o)}</b></td><td class="num"><b>${N(tot.f)}</b></td><td class="num"><b>${N(tot.t)}</b></td><td class="num"><b>${N(tot.i)}</b></td></tr></table>
+  <p class="note">Cash-book column = rows you typed. Feed-log column = bags (some bags' payment sits in the cash book, some was paid in cash outside it — the <b>Total</b> column does the drawer math, never add the columns yourself). Money in excludes borrowed money: loans are tracked in Loans, not income.</p>`;
+}
+function batchClock(){
+  const W=940,H=78, px=t=>10+(t/140)*(W-20);
+  const firstEgg=M.eggs.length?M.age(M.eggs.map(e=>e.date).sort()[0]):null;
+  const marks=[[0,"day-old","b"],[42,"6wk · fowl pox","b"],[84,"12wk · typhoid 2","b"],[105,"15wk · pox booster","b"],[112,"16wk · deworm","b"],[126,"pre-lay ND+EDS","b"],[126,"LAY","t"]];
+  if(firstEgg!=null) marks.push([firstEgg,"first egg","t"]);
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block">
+    <line x1="10" y1="40" x2="${W-10}" y2="40" stroke="var(--line)" stroke-width="3"/>
+    <line x1="10" y1="40" x2="${px(Math.min(M.todayAge,140))}" y2="40" stroke="var(--pine)" stroke-width="3"/>
+    ${marks.map(m=>
+      `<line x1="${px(m[0])}" y1="30" x2="${px(m[0])}" y2="50" stroke="var(--ink)" stroke-width="${m[1]==="LAY"?2:1}" opacity=".6"/>
+      <text x="${px(m[0])}" y="${m[2]==="b"?64:20}" font-size="9.5" fill="${m[1]==="LAY"?"var(--yolk)":"var(--dim)"}" text-anchor="middle" font-weight="${m[1]==="LAY"?700:400}">${m[1]}</text>`).join("")}
+    <circle cx="${px(Math.min(M.todayAge,140))}" cy="40" r="7" fill="var(--yolk)" stroke="var(--ink)" stroke-width="1.5"/>
+    <text x="${px(Math.min(M.todayAge,140))}" y="58" font-size="11" font-weight="700" text-anchor="middle" fill="var(--ink)">day ${M.todayAge}</text>
+  </svg>`;
+}
+
+/* ---------- render ================= */
+const kp = defs => defs.map(k=>
+  `<div class="kpi ${k.hero?"hero":""}"><div class="n">${k.n}</div><div class="l">${k.l}</div><div class="s ${k.bad?"bad":""}">${k.s}</div></div>`).join("");
+const ACTS=(coll,id)=>`<td class="act"><button class="iconbtn" onclick="editRec('${coll}','${id}')">edit</button> <button class="iconbtn del" onclick="delRec('${coll}','${id}')">del</button></td>`;
+function rowRes(key, hours, inner){
+  /* resolved rows stay gone for `hours` — saved in farm-live.json so it survives restarts */
+  const t=(P.__resolves||{})[key];
+  if(t && (Date.now()-new Date(t).getTime())/36e5 < hours) return "";
+  return inner;
+}
+function resolveRow(key){
+  P.__resolves=P.__resolves||{};
+  P.__resolves[key]=new Date().toISOString();
+  save();
+}
+
+/* theme */
+function setTheme(t){ document.documentElement.setAttribute("data-theme",t); localStorage.pvTheme=t; if(typeof chrome==="function"&&typeof M!=="undefined"&&M) chrome(); }
+function toggleTheme(){ setTheme(document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark"); }
+
+/* ---------- data checks: duplicate sweep + silent days ---------- */
+let CHK=[];
+function checksUI(){
+  const L={pv_financials:"money",pv_feed_log:"feed log",pv_egg_log:"egg log",pv_health_log:"health"};
+  CHK=[];
+  const dupScan=(coll,f)=>{ const g={}; (P[coll]||[]).forEach(r=>{ const k=f(r); (g[k]=g[k]||[]).push(r.id); });
+    Object.keys(g).forEach(k=>{ if(g[k].length>1) CHK.push({coll,k,ids:g[k]}); }); };
+  dupScan("pv_financials",r=>[D(r.date),r.type,r.category,Math.round(r.amount||0)].join(" \u00b7 ")+" | "+(r.note||"").slice(0,40));
+  dupScan("pv_feed_log",r=>[D(r.date),r.type||r.item||"feed"].join(" \u00b7 "));
+  dupScan("pv_egg_log",r=>[D(r.date),r.batchId].join(" \u00b7 "));
+  dupScan("pv_health_log",r=>[D(r.date),r.eventType||""].join(" \u00b7 "));
+  /* silent days: every date between first entry and today with zero records */
+  const cols=[].concat(P.pv_egg_log||[],P.pv_health_log||[],P.pv_financials||[],P.pv_feed_log||[]);
+  const days=new Set(cols.map(r=>D(r.date)).filter(Boolean));
+  const first=days.size?[...days].sort()[0]:null;
+  const missed=[];
+  if(first){
+    for(let d=new Date(first); d<=new Date(); d=new Date(+d+864e5)){
+      const s=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+      if(!days.has(s)) missed.push(s);
+    }
+  }
+  const edge=D(missed[missed.length-1]);
+  return `<div class="card"><h3>Data checks <span style="font-weight:400;font-size:12px;color:var(--dim)">— runs itself on every render</span></h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div>
+      <p style="font-size:13px;margin:0 0 6px"><b>${CHK.length?CHK.length+" possible duplicate"+(CHK.length===1?"":"s"):"No duplicates"}</b>${CHK.length?" — same day, same kind, same naira":" in any collection."}</p>
+      ${CHK.length?`<table><tr><th>Where</th><th>The repeated row looks like</th><th class="num">x</th><th></th></tr>
+        ${CHK.map((g,i)=>`<tr data-row="dup${i}"><td>${L[g.coll]}</td><td style="font-size:12px">${g.k}</td><td class="num">${g.ids.length}</td><td class="act"><button class="iconbtn" onclick="dupKeep(${i})">keep 1st, del rest</button></td></tr>`).join("")}</table>
+      <p class="note">Same-day entries can be genuinely two bills — check the note before firing. "keep 1st" deletes nothing until you tap.</p>`:""}
+    </div>
+    <div>
+      <p style="font-size:13px;margin:0 0 6px"><b>${first?missed.length+" silent day"+(missed.length===1?"":"s"):"No entries yet"}</b>${first?` since ${D(first)} — days with zero records everywhere`:" across the whole book."}</p>
+      ${first&&missed.length?`<div style="font-size:12.5px;color:var(--dim);line-height:1.7">${missed.slice(-10).map(s=>D(s)).join(" \u00b7 ")}${missed.length>10?" …":" "}</div>`:""}
+      ${first&&!missed.length?`<p style="font-size:13px;margin:6px 0;color:var(--pine)"><b>Every single day covered — May to today.</b> That is what a book you can defend looks like.</p>`:""}
+    </div>
+  </div></div>`;
+}
+function dupKeep(i){
+  const g=CHK[i]; if(!g) return;
+  if(!confirm("Delete the "+(g.ids.length-1)+" extra row(s), keep the first of:\n"+g.k)) return;
+  g.ids.slice(1).forEach(id=>delRec(g.coll,id,true));
+  rerender();
+}
+
+/* ---------- Notes: every deep write-up lives here, in short plain sections ---------- */
+function goNote(a){
+  const link=[...document.querySelectorAll("nav a")].find(l=>l.getAttribute("href")==="#notes");
+  if(link&&!link.classList.contains("on")) link.click();
+  requestAnimationFrame(()=>{ const el=document.getElementById(a);
+    if(el){ el.scrollIntoView({block:"start"}); el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"),1800);} });
+}
+function notesUI(){
+  const set=M.set, birds=M.batch.birdCount, crates=set.eggsPerCrate;
+  const perEgg=(set.defaultCratePrice||4500)/crates;
+  const eggsNeed=(P.pv_settings.defaultCratePrice?Math.ceil(M.spent/Math.max(perEgg,1)):0);
+  const restocks=(P.pv_feed_log||[]).slice().sort((a,b)=>a.date<b.date?-1:1);
+  const feedPaid=[...M.fin.filter(r=>r.type==="expense"&&r.category==="Feed").map(r=>r.amount),...restocks.map(r=>r.cost)];
+  const starter=restocks.filter(r=>r.date<"2026-07-01"||r.type==="starter"), stAvg=starter.length?starter.reduce((a,r)=>a+r.cost/Math.max(r.bags||r.kg/25,1),0)/starter.length:0;
+  const wkNow=Math.ceil(M.todayAge/7);
+  const gloss=[
+    ["lay % / hen-day","eggs laid per 100 birds in a day. 90 = 90 of your 100 hens laid. The ISA guide's table is per bird, per week."],
+    ["break-even","the point where egg sales have paid back ALL money spent so far — before it, every crate is repaying the farm, after it you are in profit."],
+    ["crate","30 eggs ("+crates+" confirmed in your settings). Your standard sell: ₦4,500 a crate = "+N(perEgg)+" per egg."],
+    ["starter / grower / layers mash","starter = chick feed (protein-rich, weeks 1–6); grower = teenage feed (7–18); layers mash = laying feed — calcium-rich for shell building."],
+    ["g/bird/day","grams ONE bird eats per day. Multiply by 554 birds to get your store burn."],
+    ["days of cover","how many days the feed in store lasts at today's burn. Order when this nears your supplier's delivery lag."],
+    ["CRD","chronic respiratory disease — chicken cold that spreads through air and water. Runs 5-day drug courses."],
+    ["feed float","cash set aside for the next feed buy. The goal: cover ≥7 days of feed money at all times."],
+  ];
+  const sec=(id,head,body)=>`<div class="card note-sec" id="${id}"><h3>${head}</h3>${body}</div>`;
+  document.getElementById("notesWrap").innerHTML=
+    sec("sec-plain","Plain words — the jargon, in one table",
+      `<table><tr><th>Word</th><th>What it means on your farm</th></tr>${gloss.map(g=>`<tr data-row="glos"><td><b>${g[0]}</b></td><td style="font-size:12.8px">${g[1]}</td></tr>`).join("")}</table>
+      <p class="note">Anything else reads strange? Tell me the word and it joins this table.</p>`)
+  + sec("sec-payback","How the payback math works",
+      `<p style="font-size:13px;line-height:1.6;margin:6px 0">The farm has swallowed <b>${N(M.spent)}</b> — feed, birds, medicine, loans. Every egg sold fights back: at ${N(set.defaultCratePrice)} a crate, the debt is <b>about ${(eggsNeed/crates>1e3?(eggsNeed/crates).toFixed(0)+" crates":eggsNeed+" eggs")}</b>. Payback today sits at <b>${(M.earned/Math.max(M.spent,1)*100).toFixed(1)}%</b>.</p>
+      <p style="font-size:13px;line-height:1.6;margin:6px 0">Two things move that bar: <b>price</b> (₦ per crate — never below ₦4,500 if you can help it) and <b>how many days in a row you collect and sell</b>. A missing day hurts double — the eggs still came out, but nobody paid for them.</p>
+      <p class="note">Live version: the amber bar on Money. It moves the moment an egg-sale row lands.</p>`)
+  + sec("sec-feed-audit","Feed vs the official ISA guide — the era story",
+      `<p style="font-size:13px;line-height:1.6;margin:6px 0">The official ISA Brown guide (the PDF this farm keeps) prints exactly what a bird should eat every week. Reading your own numbers against it:</p>
+      <p style="font-size:13px;line-height:1.6;margin:6px 0"><b>Weeks 1–6 (chick era):</b> guide-style appetite is tiny — a chick eats less than a tablespoon a day. Still well over the guide's number of bags went in. One of two things happened: chicks got fed too much, or starter bags lasted past week 6 (the "layers mash" money rows from that age hint there). Only your memory can settle which.</p>
+      <p style="font-size:13px;line-height:1.6;margin:6px 0"><b>Weeks 7–18 (rearing):</b> nearly perfect — about +10% over guide, inside the guide's own slop. Nothing to fix.</p>
+      <p style="font-size:13px;line-height:1.6;margin:6px 0"><b>The money leak:</b> same feed at the guide's fair price ₦12,800/bag would cost roughly ₦2,136,000 by day ${M.todayAge}. You paid more — and the gap is <b>price, not appetite</b>: small starter bags averaging ${stAvg?N(stAvg):"₦17,259"} and some ₦13,000 grower buys. The fix is boring and it works: one bulk order at one agreed price, before hunger dictates terms.</p>`)
+  + sec("sec-weeks","What week "+wkNow+" means",
+      `<p style="font-size:13px;line-height:1.6;margin:6px 0">Week ${wkNow} = day ${M.todayAge}. Your birds are past the rearing table (ends week 18); the lay ramp started at week 19 — appetite climbs 95 → 100 → 104 → 107 g/bird/day through week 22, hitting the full <b>115 g/bird/day</b> near week 27.</p>
+      <p style="font-size:13px;line-height:1.6;margin:6px 0">At ${birds} birds that rate is the store burn on the Feed tab — every feed-days number on this console uses the guide's weekly truth, not a flat guess. When you log a restock late, the burn keeps the guide's rate and the days-of-cover go quiet-sloppy — log restocks on the day they land.</p>`)
+  + sec("sec-birds","The birds themselves — price and loss",
+      `<p style="font-size:13px;line-height:1.6;margin:6px 0">${birds} birds landed at <b>${N((M.cats["Chick purchase"]||0)/birds)}</b> each (₦${fmtBig(M.cats["Chick purchase"]||0)} total). ${M.mortBirds} lost since — every standing bird now carries the dead ones' cost. Vendor weakness was the known cause; on the next batch the replacement policy matters more than the per-bird naira.</p>
+      <p style="font-size:13px;line-height:1.6;margin:6px 0">Health needs to be boring: log every morning round with the round button (it files eggs, deaths, feed in one save). CRD weeks like this one deserve dose-by-dose watching — a day of skipped water drug is how a 3% loss becomes 10%.</p>`)
+  + sec("sec-buyers","The buyer plan — five names before the crates pile up",
+      `<p style="font-size:13px;line-height:1.6;margin:6px 0">Unsold eggs are the only asset on this farm that rots. Lay is ramping; crates arrive faster each week. The plan: <b>five buyers with phone numbers</b> — two neighbours' kitchens, two market women, one for home/own use — before peak lay.</p>
+      <p style="font-size:13px;line-height:1.6;margin:6px 0">The book lives on the Eggs tab: add a name, tap <b>sold today</b>, the money row files itself. Renegotiation sheet right above it shows what each buyer really pays versus your ₦4,500 standard.</p>`)
+  + sec("sec-loans","Loans — borrowed money is not income",
+      `<p style="font-size:13px;line-height:1.6;margin:6px 0">Open right now: ${M.loansOpen.map(l=>l.lender+" "+N(l.repayAmount)+" (due "+D(l.dueDate)+")").join(" · ")||"none"}. Debt that lands is recorded <b>only as a loan</b> — it never counts as income, because it must go back out again.</p>
+      <p style="font-size:13px;line-height:1.6;margin:6px 0">Watch the date pile-up: both open loans share Dec 10 — ${N(M.loansOpen.reduce((a,l)=>a+l.repayAmount,0))} leaving in one day. The first month of strong egg sales should bank toward that day first, before any reinvesting.</p>`)
+  + sec("sec-console","How this console counts — the honest rules",
+      `<p style="font-size:13px;line-height:1.6;margin:6px 0"><b>Feed's two drawers:</b> feed money lives in the money log AND the feed purchase log. This console lets you choose which to count — you chose <b>both</b> ("every naira that left the farm"). Change it from the Money tab any time; every total follows.</p>
+      <p style="font-size:13px;line-height:1.6;margin:6px 0"><b>Data checks:</b> under Today — duplicate candidates and silent days, counted every render, deleting nothing without your tap. <b>Backups:</b> the ⇩ button downloads the whole truth as a dated file — Friday habit, saved somewhere OneDrive doesn't own.</p>
+      <p style="font-size:13px;line-height:1.6;margin:6px 0"><b>The past stays as prepaid honesty:</b> questionable old rows are flagged, not deleted — your word decides each one.</p>`);
+}
+
+function rerender(){
+  M=derive();
+  chrome(); notesUI(); todayUI(); planUI(); moneyUI(); flockUI(); feedUI(); schedUI(); alertsUI(); ledgerUI(); checksUI();
+}
+function chrome(){
+  const tb=document.getElementById("themeBtn");
+  if(tb) tb.textContent = document.documentElement.getAttribute("data-theme")==="dark" ? "☀" : "🌙";
+  document.getElementById("farmline").textContent = M.farm.ownerName+" · "+M.farm.name.toLowerCase();
+  document.getElementById("railfoot").innerHTML = `${M.batch.birdCount} ISA Browns · day ${M.todayAge}<br>live records: farm-live.json <button class="iconbtn" onclick="backupNow()">⇩ back up</button>`;
+  document.getElementById("flockkick").textContent=`batch 2 · ${M.batch.breed}`;
+  document.getElementById("dot-today").classList.toggle("show", M.daysLeft<=M.set.lowFeedThresholdDays || M.loansOpen.some(l=>(new Date(l.dueDate)-new Date())<7*864e5));
+  document.getElementById("dot-sched").classList.toggle("show", M.late.length>5);
+  if(!SERVER && !document.getElementById("offlineBar")){
+    const bar=document.createElement("div");
+    bar.id="offlineBar";
+    bar.className="alertRow"; bar.style.borderLeftColor="var(--brick)";
+    bar.innerHTML=`<div><b>Server not running — this is a read-only copy</b><span>Start it in the site folder: <b>python server.py</b>. Records won't save until it's up.</span></div>`;
+    const strip=document.getElementById("todayStrip");
+    strip.insertBefore(bar, strip.firstChild);
+  }
+}
+
+/* ---------- today ---------- */
+function todayUI(){
+  const rows=[];
+  if(M.daysLeft<=0) rows.push(`<div class="alertRow"><div class="sig">${CHICK}</div><div><b>Feed runs out today</b><span>${M.feedKg} kg ${M.feedT.type||""} left, burning ${M.perDay} kg/day. Supplier on file: ${M.feedT.supplier||"\u2014"}</span></div></div>`);
+  else if(M.daysLeft<=M.set.lowFeedThresholdDays) rows.push(rowRes("feedlow", 24*3, `<div class="alertRow"><div class="sig">${CHICK}</div><div><b>Feed runs out in about ${Math.ceil(M.daysLeft)} day${Math.ceil(M.daysLeft)===1?"":"s"}</b><span>${M.perDay} kg/day against roughly ${Math.round(M.perDay*M.daysLeft)} kg left in the ${M.feedKg} kg store. <button class="iconbtn" onclick="formFeed(null,'${M.feedT.supplier}')">log the restock</button></span></div><button class="iconbtn" title="resolve for 3 days" onclick="resolveRow('feedlow')">✕</button></div>`));
+  M.loansOpen.forEach(l=>{
+    const due=Math.round((new Date(l.dueDate)-new Date())/864e5);
+    const head=due>=0?`Repay ${N(l.repayAmount)} to ${l.lender} — due in ${due} day${due===1?"":"s"}`:`Overdue: ${N(l.repayAmount)} to ${l.lender}`;
+    rows.push(rowRes("loan:"+l.id, 24*7, `<div class="alertRow ${due<=3?"":"warn"}"><div class="sig">${HAND}</div><div><b>${head}</b><span>Due ${D(l.dueDate)} · borrowed ${N(l.amount)} <button class="iconbtn" onclick="formLoan('${l.id}')">paid?</button></span></div><button class="iconbtn" title="resolve for a week" onclick="resolveRow('loan:${l.id}')">✕</button></div>`));
+  });
+  if(M.eggsTotal>0){
+    const first=M.eggs.map(e=>e.date).sort()[0];
+    rows.push(`<div class="alertRow warn"><div class="sig">${EGG}</div><div><b>Lay has started — ${M.eggsTotal} eggs logged so far</b><span>First collection ${D(first)} (day ${M.age(first)}). Expect the ramp into week 25.</span></div></div>`);
+  }
+  /* habit nudge: today and yesterday both watched — silence is how ledgers start lying */
+  const todayS=new Date().toISOString().slice(0,10), yestS=new Date(Date.now()-864e5).toISOString().slice(0,10);
+  const cols=[].concat(P.pv_egg_log||[],P.pv_health_log||[],P.pv_financials||[],P.pv_feed_log||[]);
+  const loggedToday=cols.some(r=>D(r.date)===todayS);
+  if(!loggedToday) rows.push(rowRes("log-today", 20, `<div class="alertRow warn"><div class="sig">${String.fromCodePoint(0x2600)}</div><div><b>Nothing logged today yet</b><span>One morning round keeps the whole machine honest: <button class="iconbtn" onclick="formRound()">☀ Morning round</button></span></div><button class="iconbtn" title="resolve until tomorrow" onclick="resolveRow('log-today')">✕</button></div>`));
+  if(!cols.some(r=>D(r.date)===yestS)) rows.push(rowRes("log-yest", 20, `<div class="alertRow"><div class="sig">${String.fromCodePoint(0x1F5D3)}</div><div><b>Yesterday went dark — no entries logged</b><span>Eggs still came out, feed still got eaten. A one-day hole is how a ledger starts lying: <button class="iconbtn" onclick="formRound()">log it now, while memory is one day stale — not one month</button></span></div><button class="iconbtn" title="resolve until tomorrow" onclick="resolveRow('log-yest')">✕</button></div>`));
+  const stale=Math.round((Date.now()-new Date(P.pv_farm.lastBackup||"2000-01-01"))/864e5);
+  if(stale>7) rows.push(rowRes("backup-stale", 24*7, `<div class="alertRow"><div class="sig">${String.fromCodePoint(0x1F4BE)}</div><div><b>Backup is ${stale} days old</b><span>The phone's last export was ${D(P.pv_farm.lastBackup)}. Export this console's file too, then re-back the phone app: <button class="iconbtn" onclick="fileBackup()">download farm-live.json</button></span></div><button class="iconbtn" title="resolve for a week" onclick="resolveRow('backup-stale')">✕</button></div>`));
+  document.getElementById("todayStrip").innerHTML=rows.join("");
+  document.getElementById("dataChecks").innerHTML=checksUI();
+
+  document.getElementById("todayKpis").innerHTML=kp([
+    {hero:1, n:String(M.eggsTotal), l:"EGGS IN THE LOG", s:M.eggsSold+" sold · "+M.eggsBroken+" broken"},
+    {n:String(M.todayAge), l:"DAYS OLD", s:"batch 2 · hatched 25 Jun"},
+    {n:String(M.batch.birdCount), l:"BIRDS", s:`${M.mortBirds} lost · ${(M.mortBirds/Math.max(M.batch.birdCount,1)*100).toFixed(1)}%`, bad:M.mortBirds>0},
+    {n:`${M.daysLeft.toFixed(1)}<small>d</small>`, l:"FEED LEFT", s:"at "+M.perDay+" kg/day", bad:M.daysLeft<=M.set.lowFeedThresholdDays},
+    {n:(M.earned-M.spent<0?"\u2212":"")+N(Math.abs(M.earned-M.spent)), l:"NET SO FAR", s:(M.earned/Math.max(M.spent,1)*100).toFixed(0)+"% of spend recovered"},
+    {n:M.loansOpen.length?N(M.loansOpen.reduce((a,l)=>a+l.repayAmount,0)):"\u20A60", l:"LOANS OPEN", s:M.loansOpen.map(l=>l.lender+" · due "+D(l.dueDate)).join(" | ")},
+  ]);
+
+  document.getElementById("todayCharts").innerHTML=`
+    <div class="card"><h3>The batch clock — day-old to lay</h3>${batchClock()}
+    <p class="note">554 ZARTEC ISA Brown hatched 25 June. The road walked is green; the amber ball is today.</p></div>
+    <div class="grid2">
+      <div class="card"><h3>Where the money went</h3>${hbar([
+        ["Feed","x",M.cats.Feed||0,"#C89B62"],
+        ["Chicks","x",M.cats["Chick purchase"]||0,""],
+        ["Loan repayment","x",M.cats["Loan repayment"]||0,""],
+        ["Medication","x",M.cats.Medication||0,""],
+        ["Everything else","x",M.spent-["Feed","Chick purchase","Loan repayment","Medication"].map(c=>M.cats[c]||0).reduce((a,b)=>a+b,0),""],
+      ],N)}
+      <p class="note">A point-of-lay batch is front-loaded: birds, feed and loan repayments swallow cash before the first crate sells.</p></div>
+      <div class="card"><h3>Cash position since May</h3>${lineChart(440,180,cashPts())}
+      <p class="note">Every step down is a purchase; the flat stretch is the lay-runway. The curve should bend up as lay builds.</p></div>
+    </div>`;
+}
+function cashPts(){
+  let cum=0;
+  return M.fin.slice().sort((a,b)=>a.date<b.date?-1:1).map(r=>{cum+=r.type==="income"?r.amount:-r.amount; return [M.age(r.date),cum,D(r.date).slice(5)];});
+}
+
+/* ---------- money ---------- */
+/* follow-the-money pipes: income streams on the left pour into the farm drum,
+   spend streams leave to the right — pipe thickness is honest naira */
+/* feed audit anchored to the OFFICIAL ISA Brown CS product guide (cage housing): rearing table wk1-18 + lay ramp wk19-27 */
+function feedStdAudit(){
+  const WMIN=[9,15,23,30,35,40,44,48,52,56,59,62,65,68,71,75,80,88],
+        WMAX=[11,17,25,32,37,42,46,50,54,58,61,64,67,70,73,77,82,90],
+        LAYR=[95,100,104,107,109,111,112,112,113];
+  const bird=M.batch.birdCount;
+  const intake=d=>{const wk=Math.ceil(d/7); if(wk<=18)return (WMIN[wk-1]+WMAX[wk-1])/2; const i=wk-19; return i<9?LAYR[i]:115;};
+  const cum=n=>{let s=0; for(let d=1;d<=n;d++)s+=intake(d); return s;};
+  const exKg=cum(M.todayAge)*bird/1000;
+  const logKg=(P.pv_feed_log||[]).reduce((s,r)=>s+(r.kg||0),0);
+  const reKg=2075, reBags=83; /* Aug+Sep money rows (1,088,000) rebuilt at the filed supplier price 13,000/bag */
+  const gotKg=logKg+reKg;
+  const gotPct=Math.round(gotKg/Math.max(exKg,1)*100)-100;
+  const chickGuide=cum(42)*bird/1000, chickBought=51; /* starter 37 bags + early "layers mash" 14 bags */
+  const rearGuide=(cum(126)-cum(42))*bird/1000, rearBought=133; /* grower 50 + rebuilt Aug/Sep 83 */
+ const layEntry=(cum(M.todayAge)-cum(126))*bird/1000;
+  const wkNow=Math.ceil(M.todayAge/7);
+  const gNow=intake(M.todayAge)*bird/1000, g27=115*bird/1000;
+  const inKg=+gNow.toFixed(1), inNaira=Math.round(inKg/25*12800);
+  const guideBags=exKg/25, guideNaira=guideBags*12800;
+  const paid=M.feedBasis==="restock"?M.feedLogCost:M.feedBasis==="both"?M.cats.Feed:M.feedFinCost, priceGap=paid-guideNaira;
+  const growerOver=Math.round((13000-12800)*50);
+  return `<div style="border-top:2px solid var(--line);margin-top:12px;padding-top:10px"><b style="font-size:13px">The honest read — anchored to your official ISA Brown CS guide</b>
+  <table><tr><th>Feed audit @ day ${M.todayAge} (guide: cage housing table)</th><th class="num">kg</th><th class="num">bags</th></tr>
+  <tr><td>The guide says these birds have eaten by now</td><td class="num">${fmtBig(exKg)}</td><td class="num">~${guideBags.toFixed(0)}</td></tr>
+  <tr><td>What the purchase log shows (11 buys)</td><td class="num">${fmtBig(logKg)}</td><td class="num">${(logKg/25).toFixed(0)}</td></tr>
+  <tr><td>+ Aug+Sep money rows rebuilt at supplier price (estimated)</td><td class="num">+${fmtBig(reKg)}</td><td class="num">+${reBags}</td></tr>
+  <tr><td><b>Total fed vs guide</b></td><td class="num"><b>${fmtBig(gotKg)}</b></td><td class="num"><b>${(gotKg/25).toFixed(0)} (${gotPct>=0?"+":""}${gotPct}%)</b></td></tr>
+  </table>
+  <div class="tile"><b>Verdict: quantity fine, price is the leak.</b><span>Rearing came in +10% of the guide — inside its own slop band. Money gap of +₦${fmtBig(priceGap)} comes from what you paid <i>per bag</i> (small starter bags, ₦13,000 grower), not from bird appetite.</span> <a class="cread" data-note="sec-feed-audit">read the era-by-era story on Notes</a></div>
+  </div>
+  <div style="border-top:2px solid var(--line);margin-top:10px;padding-top:10px"><b style="font-size:13px">What week ${wkNow} means per your guide</b>
+  <div class="tile"><b>Week ${wkNow}: birds eat ${inKg} kg/day — ≈${(inKg/25).toFixed(1)} bags, ₦${fmtBig(inNaira)} a day.</b><span>The rate climbs to <b>${g27.toFixed(1)} kg/day</b> at full lay (week 27). The console burns your store at this guide rate, not the old pullet 49.4 — the table above carries the era detail.</span> <a class="cread" data-note="sec-weeks">how the guide's table works</a></div>
+  <p class="note">Nov 1–7 feed consumption (₦201,700) is estimated — reconcile it when the real receipt lands, and this card follows automatically.</p></div></div>`;
+}
+function moneyPipes(defs){
+  function side(rows,wTarget,xDir,color){
+    const max=Math.max(...rows.map(r=>r.amount),1);
+    const H=rows.length*46+8;
+    return rows.map((r,i)=>{
+      const h=Math.max(4,Math.round(r.amount/max*30));
+      const y=10+i*46+((40-h)/2);
+      const len=key=>Math.max(120,Math.round(key/max*240));
+      const L=len(r.amount);
+      const x1=xDir<0? 480-L : 480+70, x2=xDir<0?475:480+70+L;
+      return `<path d="M${xDir<0?x1:x1},${y+2} C ${xDir<0?x1+60:x2-60},${y+2} ${xDir<0?x2-40:x1+40},${y+h/2} ${x2},${y+h/2}" fill="none" stroke="${color}" stroke-width="${h}" stroke-linecap="round" opacity=".55"/>
+      <text x="${xDir<0?x1-8:x2+8}" y="${y+h/2-4}" font-size="11.5" text-anchor="${xDir<0?"end":"start"}" fill="var(--ink)">${r.label}</text>
+      <text x="${xDir<0?x1-8:x2+8}" y="${y+h/2+10}" font-size="10.5" text-anchor="${xDir<0?"end":"start"}" fill="var(--dim)">${N(r.amount)}</text>`;
+    }).join("");
+  }
+  const W=1000, Hc=Math.max(defs.in.length,defs.out.length)*46+40;
+  return `<svg viewBox="0 0 ${W} ${Hc}" style="width:100%;display:block" role="img" aria-label="money flow diagram">
+    <rect x="480" y="0" width="70" height="${Hc}" rx="10" fill="#25503B"/>
+    <text x="515" y="${Hc/2-16}" font-size="11" text-anchor="middle" fill="#EFE9D9">THE</text>
+    <text x="515" y="${Hc/2}" font-size="11" text-anchor="middle" fill="#EFE9D9">FARM</text>
+    <text x="515" y="${Hc/2+18}" font-size="9.5" text-anchor="middle" fill="#C9BC96">${M.batch.birdCount} birds</text>
+    <text x="515" y="${Hc/2+32}" font-size="9.5" text-anchor="middle" fill="#C9BC96">day ${M.todayAge}</text>
+    ${side(defs.in,defs.inMax,-1,"var(--pine)")}
+    ${side(defs.out,defs.outMax,1,"#C89B62")}
+  </svg>`;
+}
+function moneyUI(){
+  const nExp=M.fin.filter(r=>r.type==="expense").length, nInc=M.fin.filter(r=>r.type==="income").length;
+  const note=n=>`<td class="faint" style="max-width:260px">${n||""}</td>`;
+  document.getElementById("moneyKpis").innerHTML=kp([
+    {n:N(M.spent), l:"SPENT", s:nExp+" entries"+(M.feedBasis==="restock"?" · feed by purchase log":M.feedBasis==="both"?" · feed: cash + purchase log":"")},
+    {n:N(M.earned), l:"EARNED", s:nInc+" entries"},
+    {n:(M.earned-M.spent<0?"\u2212":"")+N(Math.abs(M.earned-M.spent)), l:"NET", s:"pre-lay investment"},
+    {n:(M.earned/Math.max(M.spent,1)*100).toFixed(1)+"<small>%</small>", l:"RECOVERED", s:"of spend, so far", bad:M.earned<M.spent},
+  ]);
+  const mapOut=c=>({"Medication":"bird health","Supplements":"bird health","Feed":"feed","Chick purchase":"the birds","Equipment":"upkeep","Labor":"upkeep","Utilities":"upkeep","Loan repayment":"loans & family","Family money":"family"}[c]||"other bills");
+  const G={out:{}, inc:{}};
+  M.fin.forEach(r=>{
+    const g=r.type==="expense"?G.out:G.inc, key=r.type==="expense"?mapOut(r.category):r.category;
+    if(r.type==="expense"&&r.category==="Feed") return; /* feed handled via adjusted cats */
+    g[key]=(g[key]||0)+r.amount;
+  });
+  G.out.feed=M.cats.Feed||0;
+  const orderOut=["feed","bird health","the birds","upkeep","loans & family","other bills"];
+  const orderInc=["Egg sales","Bird sales","Manure sales","Family money"];
+  const outTotal=orderOut.reduce((a,k)=>a+(G.out[k]||0),0), incTotal=orderInc.reduce((a,k)=>a+(G.inc[k]||0),0);
+  const row=(label,arr,total)=>`<tr><td><b>${label}</b></td><td class="num">${N(arr[label]||0)}</td><td class="num">${(arr[label]||0)/Math.max(total,1)*100|0}%</td></tr>`;
+  document.getElementById("cashFlow").innerHTML=cashCalendar();
+  document.getElementById("buyerBook").innerHTML=buyersUI();
+  document.getElementById("moneyCharts").innerHTML=`
+    <div class="card"><h3>Follow the money — every pipe is a stream of naira</h3>
+    ${moneyPipes({
+      in:orderInc.filter(k=>G.inc[k]).map(k=>({label:k,amount:G.inc[k]})),
+      out:orderOut.filter(k=>G.out[k]).map(k=>({label:k,amount:G.out[k]}))
+    })}
+    <p class="note">Left: what came in. Right: what left. Pipe thickness is money drawn honest. The drum is ${(M.earned/M.spent*100).toFixed(1)}% paid back.</p></div>
+    <div class="card"><h3>Your money, in farmer words</h3>
+    <div class="grid2">
+      <div><table><tr><th>Money out</th><th class="num">Amount</th><th class="num">Share</th></tr>
+      ${orderOut.filter(k=>G.out[k]).map(k=>row(k,G.out,outTotal)).join("")}
+      <tr><td></td><td class="num"><b>${N(outTotal)}</b></td><td class="num"></td></tr></table></div>
+      <div><table><tr><th>Money in</th><th class="num">Amount</th><th class="num">Share</th></tr>
+      ${orderInc.filter(k=>G.inc[k]).map(k=>row(k,G.inc,incTotal)).join("")}
+      ${incTotal?`<tr><td></td><td class="num"><b>${N(incTotal)}</b></td><td class="num"></td></tr>`:""}</table></div>
+    </div>
+    <p class="note">No accountant words: bird health means vaccines and drugs, upkeep means transport, labour and repairs, loans & family means money you owe or were given. If a line surprises you, that is the bill to ask about.</p></div>
+    <div class="card"><h3>Paying the farm back — egg by egg</h3>
+    ${(()=>{ /* the spend is the farm's loan to itself; every egg sold chips at it */
+      const perEgg=P.pv_settings.defaultCratePrice/M.set.eggsPerCrate;
+      const eggsNeeded=Math.ceil(M.spent/Math.max(perEgg,1));
+      const pct=Math.min(100,M.earned/Math.max(M.spent,1)*100);
+      const crates=Math.ceil(eggsNeeded/P.pv_settings.eggsPerCrate);
+      return `<div style="background:var(--track);border-radius:3px;height:22px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--yolk)"></div></div>
+      <div class="grid2" style="margin-top:10px">
+        <div><div style="font-size:26px;font-weight:600">${N(M.earned)}</div><div class="faint" style="font-size:12px">earned so far of the ${N(M.spent)} the farm has swallowed</div></div>
+        <div><div style="font-size:26px;font-weight:600">${fmtBig(eggsNeeded)}</div><div class="faint" style="font-size:12px">eggs still owed at the ${N(perEgg)}/egg you charge — about ${fmtBig(crates)} crates</div></div>
+      </div>
+      <div class="tile"><b>The promise: this bar fills crate by crate as crates sell.</b><span>Every full crate now is ₦4,500 closer to even. <a class="cread" data-note="sec-payback">how the payback math works</a></span></div>`;
+    })()}</div>
+    <div class="card"><h3>Is feed counted twice? The two-drawer question</h3>
+    <p class="note">Feed cost is known in two places at once — the money log and the feed purchase log. This card only asks which to call the truth. <a class="cread" data-note="sec-console">how this console counts</a></p>
+    <div class="grid2">
+      <div><table><tr><th>Drawer</th><th class="num">Says feed cost</th></tr>
+      <tr><td>Money log (3 rows)</td><td class="num">${N(M.feedFinCost)}</td></tr>
+      <tr><td>Feed purchase log (11 buys)</td><td class="num">${N(M.feedLogCost)}</td></tr>
+      <tr><td>Difference</td><td class="num">${N(Math.abs(M.feedLogCost-M.feedFinCost))}</td></tr></table></div>
+      <div><b style="font-size:13px">Which drawer should count?</b><p style="font-size:12.5px;margin:8px 0" class="faint">If part of the purchase-log bags were never paid in the money rows (or the rows only covered part of them), count both — every naira that left the farm.</p>
+      <button class="iconbtn ${M.feedBasis==="money"?"":"del"}" onclick="setFeedBasis('money')" ${M.feedBasis==="money"?"disabled":""}>cash rows only (${N(M.feedFinCost)})</button>&nbsp;
+      <button class="iconbtn ${M.feedBasis==="restock"?"":"del"}" onclick="setFeedBasis('restock')" ${M.feedBasis==="restock"?"disabled":""}>purchase log only (${N(M.feedLogCost)})</button>&nbsp;
+      <button class="iconbtn ${M.feedBasis==="both"?"":"del"}" onclick="setFeedBasis('both')" ${M.feedBasis==="both"?"disabled":""}>both drawers — all money out (${N(M.feedFinCost+M.feedLogCost)})</button></div>
+    </div>
+    <p class="note">Right now this console counts: <b>${M.feedBasis==="restock"?`the purchase log alone — feed ${N(M.feedLogCost)}`:M.feedBasis==="both"?`both drawers — feed ${N(M.feedFinCost+M.feedLogCost)}, all money out ${N(M.spent)}`:`the cash rows alone — feed ${N(M.feedFinCost)}`}</b>. Change your mind any time — every total follows: spent, groups, the pipes, the pay-back bar.</p>
+    ${feedStdAudit()}
+    </div>
+    <div class="card"><h3>Monthly rhythm — money out (tan) behind money in (green)</h3>${monthBars()}
+    <p class="note">June is the hump: ${N(M.catsRaw["Chick purchase"])} of day-olds landed 25 Jun and starter feed came in 25 kg bags.</p>
+    <div style="margin-top:10px;padding-top:10px;border-top:2px solid var(--line)"><h3 style="font-size:15px">Month by month — every month, on one page</h3>${monthTable()}</div></div>
+    <div class="grid2">
+      <div class="card"><h3>Income sources so far</h3>${hbar([
+        ["Bird sales","x",M.cats["Bird sales"]||0,"var(--pine)"],
+        ["Egg sales","x",M.cats["Egg sales"]||0,"var(--yolk)"],
+        ["Manure sales","x",M.cats["Manure sales"]||0,"var(--moss)"],
+      ].filter(x=>x[2]>0),N)}
+      <p class="note">${M.cats["Egg sales"]?`Bird sales carried the farm pre-lay; eggs gave the first ${N(M.cats["Egg sales"])}.`:"Bird sales carried the farm pre-lay. Egg income is still zero — this batch's first crates go on the board as they sell."}</p></div>
+      <div class="card"><h3>Loans</h3><table><tr><th>Lender</th><th class="num">Borrowed</th><th class="num">To repay</th><th class="num">Repaid so far</th><th>Status</th><th></th></tr>
+      ${M.loans.map(l=>`<tr data-row="loans"><td>${l.lender}</td><td class="num">${N(l.amount)}</td><td class="num">${N(l.repayAmount)}</td><td class="num">${N(loanRepaid(l))}</td><td>${l.paid?`<span class="chip ok">paid ${D(l.paidDate)}</span>`:`<span class="chip late">open · due ${D(l.dueDate)}</span>`}</td><td class="act">${l.paid?"":`<button class="iconbtn" onclick="formLoanPay('${l.id}')">paid</button> `}<button class="iconbtn" onclick="editRec('pv_loans','${l.id}')">edit</button> <button class="iconbtn del" onclick="delRec('pv_loans','${l.id}')">del</button></td></tr>`).join("")}</table>
+      ${loanShortfallNote()}
+    <p class="note">Family and co-op money keeps the early weeks moving. <a class="cread" data-note="sec-loans">loan rules, plain</a></p></div>
+    </div>
+    <div class="card"><h3>Every naira — finance log <button class="iconbtn" style="float:right" onclick="formFin()">+ Add</button></h3><div class="wrap"><table><tr><th>Date</th><th>Type</th><th>Category</th><th>Note</th><th class="num">Amount</th><th></th></tr>
+    ${M.fin.slice().sort((a,b)=>a.date<b.date?1:-1).map(r=>`<tr><td>${D(r.date)}</td><td><span class="chip ${r.type}">${r.type}</span></td><td>${r.category}${r.linkId&&String(r.linkId).startsWith("egg:")?' <span class="chip ok" title="created from an egg sale">egg log</span>':""}</td>${note(r.note)}<td class="num">${N(r.amount)}</td>${ACTS("pv_financials",r.id)}</tr>`).join("")}</table></div></div>`;
+}
+
+/* ---------- flock ---------- */
+function flockUI(){
+  const evColors={Mortality:"var(--brick)",Vaccination:"var(--pine)",Treatment:"#8A6410",Supplement:"var(--moss)"};
+  const health=(P.pv_health_log||[]).slice().sort((a,b)=>a.date<b.date?-1:1);
+  document.getElementById("flockKpis").innerHTML=kp([
+    {n:String(M.batch.birdCount), l:"BIRDS STANDING", s:M.batch.breed},
+    {n:String(M.mortBirds), l:"MORTALITY", s:M.mort.length+" mortality events", bad:M.mortBirds>0},
+    {n:(M.mortBirds/Math.max(M.batch.birdCount,1)*100).toFixed(1)+"<small>%</small>", l:"LOSS RATE", s:"across "+M.todayAge+" days"},
+    {n:String(health.length), l:"HEALTH EVENTS", s:"vacc · treat · supplement"},
+  ]);
+  document.getElementById("flockCharts").innerHTML=`
+    <div class="card"><h3>Health tape — every entry on one line</h3>
+    <svg viewBox="0 0 940 92" style="width:100%;display:block">
+      <line x1="10" y1="44" x2="930" y2="44" stroke="var(--line)" stroke-width="3"/>
+      ${[0,21,42,63,84,105,126].map(w=>{const x=10+w/136*920; return `<line x1="${x}" y1="34" x2="${x}" y2="54" stroke="var(--line)"/><text x="${x}" y="70" font-size="9" fill="var(--dim)" text-anchor="middle">wk ${w/7}</text>`}).join("")}
+      ${health.map(h=>{const x=10+Math.max(0,Math.min(M.age(h.date),136))/136*920; return `<circle cx="${x}" cy="44" r="5" fill="${evColors[h.eventType]||"var(--ink)"}" opacity=".85"><title>${D(h.date)} — ${h.eventType}: ${h.product||h.notes||""}</title></circle>`}).join("")}
+      ${M.mort.map(h=>{const x=10+Math.max(0,Math.min(M.age(h.date),136))/136*920; return `<text x="${x}" y="26" font-size="12" fill="var(--brick)" text-anchor="middle" font-weight="700">\u2020</text>`}).join("")}
+      <text x="10" y="88" font-size="9" fill="var(--dim)">day 0</text>
+      <text x="930" y="88" font-size="9" fill="var(--dim)" text-anchor="end">today · day ${M.todayAge}</text>
+    </svg>
+    <p class="note">\u2020 marks mortality. \u201CCame very weak from the vendor\u201D — worth a harder word with that supplier before the next batch.</p></div>
+    <div class="grid2">
+      <div class="card"><h3>Treatments &amp; supplements <button class="iconbtn" style="float:right" onclick="formHealth()">+ Add</button></h3>
+      <ul class="tl">${health.filter(h=>h.eventType!=="Mortality"&&h.eventType!=="Vaccination").map(h=>`<li><span class="d">${D(h.date)}</span><span>${h.eventType} — ${h.product||""}</span><span class="r">${h.dosage||""}</span></li>`).join("")}</ul></div>
+      <div class="card"><h3>Full health log</h3>
+      <div class="wrap"><table><tr><th>Date</th><th>Event</th><th>Product / cause</th><th>Dose</th><th></th></tr>
+      ${health.map(h=>`<tr><td>${D(h.date)}</td><td>${h.eventType}</td><td class="faint" style="max-width:200px">${h.product||""}</td><td>${h.dosage||""}</td>${ACTS("pv_health_log",h.id)}</tr>`).join("")}</table></div></div>
+    </div>`;
+}
+
+/* ---------- feed + eggs ---------- */
+function feedUI(){
+  const restocks=(P.pv_feed_log||[]).slice().sort((a,b)=>a.date<b.date?-1:1);
+  const feedCost=restocks.reduce((a,r)=>a+r.cost,0);
+  const kgBought=restocks.reduce((a,r)=>a+r.kg,0);
+  document.getElementById("feedKpis").innerHTML=kp([
+    {n:`${M.feedKg}<small>kg</small>`, l:"IN STORE", s:M.feedT.type||"", bad:M.daysLeft<=M.set.lowFeedThresholdDays},
+    {n:`${M.daysLeft.toFixed(1)}<small>d</small>`, l:"DAYS COVER", s:M.perDay+" kg/day burn", bad:M.daysLeft<=M.set.lowFeedThresholdDays},
+    {n:N(feedCost), l:"FEED SPEND", s:restocks.length+" restocks"},
+    {n:N(kgBought?feedCost/kgBought:0)+"/kg", l:"AVG PRICE", s:kgBought+" kg bought"},
+  ]);
+  document.getElementById("feedCharts").innerHTML=`
+    <div class="card"><h3>Restock history <button class="iconbtn" style="float:right" onclick="formFeed()">+ Add</button></h3><div class="wrap"><table><tr><th>Date</th><th>Type</th><th class="num">Bags</th><th class="num">kg</th><th class="num">Cost</th><th class="num">\u20A6/bag</th><th>Supplier</th><th></th></tr>
+    ${restocks.map(r=>`<tr><td>${D(r.date)}</td><td>${r.type}</td><td class="num">${r.bags}</td><td class="num">${r.kg}</td><td class="num">${N(r.cost)}</td><td class="num">${N(r.cost/Math.max(r.bags,1))}</td><td class="faint">${r.supplier||"\u2014"}</td>${ACTS("pv_feed_log",r.id)}</tr>`).join("")}</table></div>
+    <svg viewBox="0 0 440 60" style="width:100%;display:block" role="img" aria-label="feed price trend">
+      ${(restocks.length>1)?(()=>{const ps=restocks.map(r=>[D(r.date),r.cost/Math.max(r.bags,1)]); const min=Math.min(...ps.map(p=>p[1]))*0.97, max=Math.max(...ps.map(p=>p[1]))*1.03;
+        const px=(i)=>30+i*(400/Math.max(ps.length-1,1)); const py=v=>50-(v-min)/((max-min)||1)*40;
+        return `<path d="${ps.map((p,i)=>(i?"L":"M")+px(i).toFixed(1)+","+py(p[1]).toFixed(1)).join(" ")}" fill="none" stroke="#C89B62" stroke-width="2"/>
+        ${ps.map((p,i)=>`<circle cx="${px(i)}" cy="${py(p[1])}" r="3" fill="#C89B62"><title>${p[0]}: ${N(p[1])}/bag</title></circle>`).join("")}
+        <text x="0" y="10" font-size="9" fill="var(--dim)">\u20A6/bag trend: ${N(min)} \u2013 ${N(max)} across ${ps.length} buys</text>`;})():`<text x="0" y="30" font-size="9" fill="var(--dim)">one restock so far — trend line appears with the second</text>`}
+    </svg>
+    <p class="note">Starter feed moved ${N(101)} \u2192 ${N(168)} per bag between June and July. The big July buy (650 kg in one hit) halved the restock trips.</p></div>
+    <div class="card"><h3>Store today</h3>${hbar([
+      [(M.feedT.type||"feed")+" in store","x",M.feedKg,"var(--yolk)"],
+      ["burn per day","x",M.perDay,"var(--brick)"],
+      ["days covered","x",M.daysLeft,"var(--pine)"],
+    ],v=>v.toFixed(1))}
+    <p class="note">The app's restock trigger is ${M.set.lowFeedThresholdDays} days of cover. Supplier on file: ${M.feedT.supplier||"\u2014"}.</p></div>`;
+  /* production statistics — the percent and the rest */
+  const crates=M.set.eggsPerCrate||30;
+  const birds=M.batch.birdCount;
+  const eggsA=(P.pv_egg_log||[]).slice().sort((a,b)=>a.date<b.date?-1:1);
+  const collOf=e=>Math.round((e.collectedCrates||0)*crates+(e.collectedLoose||0));
+  const busSale=eggsA.reduce((a,e)=>a+Math.round((e.soldCrates||0)*crates+(e.soldLoose||0)),0);
+  const busBroken=eggsA.reduce((a,e)=>a+(e.broken||0),0), busOwn=eggsA.reduce((a,e)=>a+(e.ownUse||0),0);
+  const busColl=eggsA.reduce((a,e)=>a+collOf(e),0), busUnsold=Math.max(0,busColl-busSale-busBroken-busOwn);
+  const lastEgg=eggsA.length?eggsA[eggsA.length-1]:null;
+  const in7=eggsA.filter(e=>(Date.now()-new Date(e.date))/864e5<=7);
+  const in142=eggsA.filter(e=>{const dd=(Date.now()-new Date(e.date))/864e5; return dd>7&&dd<=14;});
+  const laid7=in7.reduce((a,e)=>a+collOf(e),0), laid142=in142.reduce((a,e)=>a+collOf(e),0);
+  const layNow=in7.length?laid7/(birds*7)*100:0, layPrev=in142.length?laid142/(birds*7)*100:0;
+  const layRef=isaLay(M.todayAge);
+  const projCrates=Math.round(layNow/100*birds*30/crates);
+  const projPeak=Math.round(isaLay(180)/100*birds*30/crates);
+  document.getElementById("eggKpis").innerHTML=kp([
+    {n:(layNow?layNow.toFixed(1):"—")+"<small>%</small>", l:"LAY % (LAST 7 DAYS)", s:layPrev?`previous week ${layPrev.toFixed(1)}% — ${layNow>=layPrev?"climbing ":"slipped "}${(Math.abs(layNow-layPrev)).toFixed(1)} pts`:"breed ref ~"+layRef.toFixed(0)+"%", bad:M.eggsTotal>0&&in7.length<3},
+    {n:(in7.length?(laid7/7).toFixed(0):"—"), l:"EGGS/DAY RIGHT NOW", s:in7.length+" collection"+(in7.length===1?"":"s")+" logged this week"},
+    {n:busColl?Math.round(busBroken/busColl*100)+"%":0, l:"BROKEN SHARE", s:busBroken+" of "+busColl+" eggs logged"},
+    {n:projCrates, l:"CRATES/MONTH AT THIS LAY", s:"at the 90% peak it is ~"+projPeak+" crates"},
+  ]);
+  /* the production chart: your percent per logged day against the breed road */
+  const ESs=eggsA.map(e=>[M.age(e.date),collOf(e)/birds*100,D(e.date)]);
+  const EW=560,EH=150, ex=d=>(d==="x")?0:14+(d-105)/131*(EW-30), ey=v=>EH-22-Math.min(100,v)/100*(EH-40);
+  const eggChart=`<svg viewBox="0 0 ${EW} ${EH}" style="width:100%;display:block" role="img" aria-label="production percent per day">
+    ${[0,25,50,75,100].map(v=>`<line x1="14" y1="${ey(v)}" x2="${EW-16}" y2="${ey(v)}" stroke="var(--line)" stroke-dasharray="${v===50?"2 3":"1 0"}" opacity="${v===50?"1":".5"}"/><text x="${EW-14}" y="${ey(v)+3}" font-size="8.5" fill="var(--dim)" text-anchor="end">${v}%</text>`).join("")}
+    <path d="${ESs.map((p,i)=>(i?"L":"M")+ex(Math.max(105,p[0])).toFixed(1)+","+ey(p[1]).toFixed(1)).join(" ")}" fill="none" stroke="var(--yolk)" stroke-width="1.8" stroke-dasharray="4 3" opacity=".9"/>
+    ${ESs.map(p=>`<circle cx="${ex(Math.max(105,p[0])).toFixed(1)}" cy="${ey(p[1])}" r="4.5" fill="var(--brick)"><title>${p[2]} (day ${p[0]}): ${p[1].toFixed(1)}% — breed ref ${isaLay(p[0]).toFixed(0)}%</title></circle>`).join("")}
+    <text x="14" y="12" font-size="9.5" fill="var(--dim)">amber = your logged days linked · red = each collection day · the 50% line is where money starts covering money</text>
+  </svg>`;
+  /* week buckets */
+  const wb={};
+  eggsA.forEach(e=>{ const k=D(e.date).slice(0,7)+"·"+String(M.age(e.date)-Math.floor(M.age(e.date)/7)*0)+"wk"; const wk=Math.floor(M.age(e.date)/7); const key="wk "+(wk+1)+" ("+D(e.date).slice(5)+")"; const b=wb[key]||(wb[key]={n:0,eggs:0,broken:0,sold:0,own:0,first:D(e.date)}); b.n++; b.eggs+=collOf(e); b.sold+=Math.round((e.soldCrates||0)*crates+(e.soldLoose||0)); b.broken+=(e.broken||0); b.own+=(e.ownUse||0);});
+  const wks=Object.entries(wb).slice(-10);
+  document.getElementById("eggStats").innerHTML=M.eggs.length?`
+    <div class="card"><h3>Production percent — your farm vs the breed road ${lastEgg?`<span style="float:right;font-weight:400;font-size:11.5px;color:var(--dim)">last log ${D(lastEgg.date)} (day ${M.age(lastEgg.date)})</span>`:""}</h3>
+    ${eggChart}
+    ${M.eggs.length<5?`<p class="note">This chart needs daily logging — five-plus collection days and the amber line gets a story of its own.</p>`:""}
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>Where every logged egg went</h3>${hbar([
+        ["sold","x",busSale,"var(--yolk)"],
+        ["broken","x",busBroken,"var(--brick)"],
+        ["own use / home","x",busOwn,"var(--moss)"],
+        ["still unsold","x",busUnsold,"var(--pine)"],
+      ].filter(x=>x[2]>0),v=>String(Math.round(v)))}
+      <p class="note">${busUnsold>0?busUnsold+" eggs collected but not yet sold — that is the pile the buyer book is for.":"Everything collected has a name on it — sold, cracked, or on the stove."}</p></div>
+      <div class="card"><h3>Week by week</h3><div class="wrap"><table><tr><th>Batch week</th><th class="num">Logs</th><th class="num">Eggs</th><th class="num">Lay % on those days</th><th class="num">Sold</th><th class="num">Broken</th></tr>
+      ${wks.map(([k,b])=>`<tr data-row="wk"><td>${k}</td><td class="num">${b.n}</td><td class="num">${b.eggs}</td><td class="num">${(b.eggs/(birds*b.n)*100).toFixed(1)}%</td><td class="num">${b.sold}</td><td class="num">${b.broken}</td></tr>`).join("")}</table></div>
+      <p class="note">Lay % here counts only days you logged — log daily and it becomes the honest farm number.</p></div>
+    </div>`:"";
+  document.getElementById("eggTable").innerHTML=(M.eggs.length?`
+    <table><tr><th>Date</th><th class="num">Collected</th><th class="num">Sold</th><th class="num">Broken</th><th class="num">Own use</th><th class="num">\u20A6/crate</th><th></th></tr>
+    ${M.eggs.slice().sort((a,b)=>a.date<b.date?1:-1).map(e=>`<tr><td>${D(e.date)}</td><td class="num">${Math.round(e.collectedCrates*M.set.eggsPerCrate+e.collectedLoose)} eggs</td><td class="num">${e.soldCrates?Math.round(e.soldCrates*M.set.eggsPerCrate)+' crates':''}${e.soldLoose?` + ${e.soldLoose} loose`:""}</td><td class="num">${e.broken||0}</td><td class="num">${e.ownUse||0}</td><td class="num">${N(e.pricePerCrate||0)}</td>${ACTS("pv_egg_log",e.id)}</tr>`).join("")}</table>`
+    :`<p class="note">No collections logged yet — tap \u201CAdd collection\u201D to start today.</p>`);
+  /* buyer book — who pays what, straight from egg-log sales */
+  const buyers={};
+  (P.pv_egg_log||[]).forEach(e=>{
+    const who=(e.buyer||"").trim()||"(no buyer named)";
+    const eggs=Math.round((e.soldCrates||0)*M.set.eggsPerCrate)+(e.soldLoose||0);
+    const rev=Math.round((e.soldCrates||0)*e.pricePerCrate + (e.soldLoose||0)*((e.pricePerCrate||M.set.defaultCratePrice)/M.set.eggsPerCrate));
+    if(!eggs&&!rev) return;
+    const b=buyers[who]||(buyers[who]={eggs:0,rev:0,visits:0,lastSale:e.date});
+    b.eggs+=eggs; b.rev+=rev; b.visits++; if(D(e.date)>D(b.lastSale)) b.lastSale=e.date;
+  });
+  const bRows=Object.entries(buyers);
+  document.getElementById("buyerSheet").innerHTML=bRows.length?`
+    <div class="card"><h3>Buyer book — what each buyer really pays</h3>
+    <table><tr><th>Buyer</th><th class="num">Visits</th><th class="num">Eggs bought</th><th class="num">Revenue</th><th class="num">\u20A6/egg</th><th class="num">\u20A6/crate</th><th class="num">Last sale</th></tr>
+    ${bRows.map(([who,b])=>`<tr><td><b>${who}</b></td><td class="num">${b.visits}</td><td class="num">${b.eggs}</td><td class="num">${N(b.rev)}</td><td class="num">${N(b.eggs?b.rev/b.eggs:0)}</td><td class="num">${N(b.eggs?b.rev/b.eggs*M.set.eggsPerCrate:0)}</td><td class="num faint">${D(b.lastSale)}</td></tr>`).join("")}</table>
+    <p class="note">This is the renegotiation sheet: name buyers when logging sales and their crate rate shows itself against yours. ${bRows.length===1&&bRows[0][0]==="(no buyer named)"?"\u2014 name the buyer next sale and the book starts keeping score.":""}</p></div>`
+    :`<div class="card"><h3>Buyer book</h3><p class="note">No sales logged yet. Name the buyer when you add a collection — this becomes your price sheet for haggling.</p></div>`;
+}
+
+/* ---------- schedule ---------- */
+function schedUI(){
+  document.getElementById("schedWrap").innerHTML=`
+    <div class="kpis">${kp([
+      {n:String(M.sched.length), l:"SCHEDULED", s:"hatch \u2192 point of lay"},
+      {n:String(M.sched.filter(s=>s.done).length), l:"DONE", s:"the list is clear"},
+      {n:String(M.late.length), l:"DONE LATE", s:"beyond the planned date", bad:M.late.length>5},
+      {n:String(M.sched.filter(s=>s.type==="Vaccination").length), l:"VACCINATIONS", s:"IM · water · eye-drop · wing-web"},
+    ])}</div>
+    <div class="card"><h3>Timeline as it actually happened</h3>
+    <ul class="tl">${M.sched.slice().reverse().map(s=>{
+      const onTime=!s.doneDate||D(s.doneDate)<=D(s.date);
+      const lateDays=s.doneDate?Math.max(0,Math.round((new Date(s.doneDate)-new Date(s.date))/864e5)):0;
+      const vacBill=s.done&&s.type==="Vaccination"&&!(P.pv_financials||[]).some(f=>f.note&&f.note.includes(s.name));
+      return `<li><span class="d">day ${String(s.day).padStart(3,"\u2007")}</span><span><b>${s.name}</b> <span class="faint">· ${s.route||""}</span>${s.note?` <span class="faint" style="font-size:11.5px">— ${s.note}</span>`:""}</span><span class="r">${s.done?(onTime?`<span class="chip ok">done ${D(s.doneDate)}</span>`:`<span class="chip late">late ${lateDays}d · ${D(s.doneDate)}</span>`):"open"} ${vacBill?`<button class="iconbtn" title="no bill recorded for ${s.name} yet" onclick="formFin(null,'vaccine')">log its bill</button>`:""} <button class="iconbtn" onclick="editRec('pv_schedule','${s.id}')">edit</button></span></li>`;
+    }).join("")}</ul></div>`;
+}
+
+/* ---------- alerts ---------- */
+function alertsUI(){
+  const al=(P.pv_alerts||[]).slice().sort((a,b)=>(a.updated_at>b.updated_at?1:-1));
+  const sevc={crit:"crit",warn:"late",info:"ok"};
+  const act=al.filter(a=>a.status==="ACTIVE").length;
+  document.getElementById("alertsWrap").innerHTML=`
+    <div class="kpis">${kp([
+      {n:String(al.length), l:"TOTAL", s:"raised history"},
+      {n:String(al.filter(a=>a.status==="RESOLVED").length), l:"RESOLVED", s:"crossed off"},
+      {n:String(act), l:"ACTIVE", s:act?"open items":"", bad:act>0},
+      {n:String(al.filter(a=>a.severity==="crit").length), l:"WERE CRITICAL", s:"feed + vaccines"},
+    ])}</div>
+    <div class="card"><div class="wrap"><table><tr><th>When</th><th>Severity</th><th>Alert</th><th>Evidence</th><th>Recommended</th><th>Status</th></tr>
+    ${al.map(a=>`<tr>
+      <td class="faint">${D(a.updated_at)}</td>
+      <td><span class="chip ${sevc[a.severity]||"ok"}">${a.severity}</span></td>
+      <td><b>${a.title}</b></td>
+      <td class="faint" style="max-width:220px">${(a.evidence||[]).join("<br>")}</td>
+      <td class="faint" style="max-width:220px">${(a.recommended_action||[]).join("<br>")}</td>
+      <td>${a.status==="RESOLVED"?'<span class="chip ok">resolved</span>':`<span class="chip late">${a.status||""}</span>`}</td>
+    </tr>`).join("")}</table></div></div>`;
+}
+
+/* ---------- ledger / loans / reminders ---------- */
+function ledgerUI(){
+  const dismiss=P.pv_dismissed||[];
+  const rows=[["pv_financials",M.fin.length,"money in / out"],["pv_health_log",(P.pv_health_log||[]).length,"health events"],["pv_feed_log",(P.pv_feed_log||[]).length,"feed restocks"],["pv_egg_log",M.eggs.length,"egg collections"],["pv_schedule",M.sched.length,"vaccines & tasks"],["pv_loans",M.loans.length,"borrowings"],["pv_reminders",(P.pv_reminders||[]).length,"reminders"],["pv_alerts",(P.pv_alerts||[]).length,"AI alerts"],["pv_dismissed",dismiss.length,"dismissed tips"],["pv_batches",(P.pv_batches||[]).length,"flock batches"]];
+  document.getElementById("ledgerWrap").innerHTML=`
+    <div class="card"><h3>Loans <button class="iconbtn" style="float:right" onclick="formLoan()">+ Add loan</button></h3>
+    <table><tr><th>Lender</th><th class="num">Borrowed</th><th class="num">To repay</th><th class="num">Repaid so far</th><th class="num">Due</th><th>Status</th><th></th></tr>
+    ${M.loans.map(l=>`<tr data-row="loans"><td>${l.lender}</td><td class="num">${N(l.amount)}</td><td class="num">${N(l.repayAmount)}</td><td class="num">${N(loanRepaid(l))}</td><td class="num">${D(l.dueDate)}</td><td>${l.paid?`<span class="chip ok">paid ${D(l.paidDate)}</span>`:`<span class="chip late">open</span>`}</td><td class="act">${l.paid?"":`<button class="iconbtn" onclick="formLoanPay('${l.id}')">paid</button> `}<button class="iconbtn" onclick="editRec('pv_loans','${l.id}')">edit</button> <button class="iconbtn del" onclick="delRec('pv_loans','${l.id}')">del</button></td></tr>`).join("")}</table>
+    ${loanShortfallNote()}</div>
+    <div class="card"><h3>Reminders <button class="iconbtn" style="float:right" onclick="formRem()">+ Add</button></h3>
+    ${(P.pv_reminders||[]).length?`<ul class="tl">${P.pv_reminders.map(r=>`<li><span class="d">${D(r.date)}</span><span>${r.text}</span><span class="r"><button class="iconbtn" onclick="editRec('pv_reminders','${r.id}')">edit</button> <button class="iconbtn del" onclick="delRec('pv_reminders','${r.id}')">del</button></span></li>`).join("")}</ul>`:`<p class="note">Nothing pending.</p>`}</div>
+    <div class="card"><h3>What this console does for the farm</h3>
+    <ul class="tl">
+      <li><span class="d">finance</span><span>money tab speaks farmer words — "bird health", "upkeep", "loans &amp; family" — with one-tap bill presets (vaccine, drug, feed bags, labour…) and the vaccine log pushes you to log its bill</span><span class="r">v1.2</span></li>
+      <li><span class="d">phones</span><span>import a new phone backup without losing console records: latest edit wins, egg sales re-sync, seeds stay safe</span><span class="r">v1.2</span></li>
+      <li><span class="d">birds</span><span>mortality entries walk the standing count by themselves — count corrections fix themselves on edit or delete</span><span class="r">v1.2</span></li>
+      <li><span class="d">loans</span><span>"repaid so far" reads the money log by lender; record repayments as they happen; borrowed-vs-repaid mismatches are named out loud</span><span class="r">v1.2</span></li>
+      <li><span class="d">records</span><span>daily logging with mistakes fixed in place — every row editable or deletable, saved to disk instantly</span><span class="r">v1.1</span></li>
+      <li><span class="d">honesty</span><span>duplicate-date and future-date guards on collections; the seed backup stays byte-identical forever</span><span class="r">v1.1</span></li>
+      <li><span class="d">sales</span><span>egg sales flow straight into the money log, name a buyer and the buyer book prices them per egg</span><span class="r">v1.1</span></li>
+      <li><span class="d">habit</span><span>morning round form + today-nudge + backup-stale alert (the data only works if it happens every day)</span><span class="r">v1.1</span></li>
+      <li><span class="d">growth</span><span>lay curve vs breed reference, break-even runway, profit ladder, flock vitality, restock rhythm, farmer notes</span><span class="r">v1.1</span></li>
+      <li><span class="d">paper</span><span>print report for the vet, co-op or bank; settings for bird count, prices and trigger days</span><span class="r">v1.1</span></li>
+    </ul>
+    <p class="note">Next up when the log fills: buyer price book alerts, and batch 3 plan built from batch 2's actual numbers (bulk feed on day 1, weekly vaccine calendar).</p></div>
+    <div class="card"><h3>Phone sync &amp; backups</h3>
+    <p style="font-size:13px; margin:6px 0">
+      <button class="iconbtn" onclick="document.getElementById('importFile').click()">import phone backup (.json)</button>&nbsp;
+      <button class="iconbtn" onclick="formSet()">farm settings</button>&nbsp;
+      <button class="iconbtn" onclick="printReport()">print report</button>&nbsp;
+      <button class="iconbtn" onclick="fileBackup()">download farm-live.json</button>&nbsp;
+      <button class="iconbtn del" onclick="resetAll()">reset to original backup</button>
+    </p>
+    <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+    <p class="note">Live records live in <em>farm-live.json</em> next to the site. Import brings the phone's records in without losing anything recorded here: latest edit wins on clashes, both collections keep their own new entries. The original <em>data.json</em> backup stays untouched.</p></div>
+    <div class="card"><h3>Raw records stored</h3><div class="wrap"><table><tr><th>Collection</th><th class="num">Rows</th><th>What it holds</th></tr>
+    ${rows.map(r=>`<tr><td class="faint" style="font-size:12px">${r[0]}</td><td class="num">${r[1]}</td><td>${r[2]}</td></tr>`).join("")}</table></div>
+    <p class="note">Schema v${P.schemaVersion} · original export ${D(P.__exported)} · live copy saved with every change.</p></div>`;
+}
+function fileBackup(){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(P,null,2)],{type:"application/json"}));
+  a.download="poultryverse_live_"+new Date().toISOString().slice(0,10)+".json";
+  a.click(); URL.revokeObjectURL(a.href);
+  toast("backup downloaded");
+}
+
+/* ================= CRUD core ================= */
+function newId(){return "u"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function stamp(o){const t=new Date().toISOString().slice(0,10); o.createdAt=o.createdAt||new Date().toISOString(); o.updatedAt=new Date().toISOString(); o.version=(o.version||0)+1; if("date" in o&&o.date)o.date=o.date.slice(0,10); return o;}
+function arr(k){ if(!P[k]) P[k]=[]; return P[k]; }
+
+const fld=(l,t,v,opt={})=>{
+  const id="f_"+l.replace(/\W+/g,"");
+  const common=`id="${id}" ${opt.extra||""}`;
+  if(t==="sel") return `<label>${l}<select ${common}>${opt.opts.map(o=>`<option ${o===v?"selected":""}>${o}</option>`).join("")}</select></label>`;
+  if(t==="area") return `<label class="full">${l}<textarea ${common} rows="2">${v||""}</textarea></label>`;
+  if(t==="chk") return `<label class="full" style="flex-direction:row;align-items:center;gap:8px;display:flex"><input type="checkbox" id="${id}" ${v?"checked":""} style="width:auto"> ${l}</label>`;
+  return `<label>${l}<input type="${t}" value="${v!=null?v:""}" ${common}></label>`;
+};
+const val=id=>{const e=document.getElementById("f_"+id); return e?(e.type==="checkbox"?e.checked:e.value):undefined;};
+const num=id=>parseFloat(val(id))||0;
+
+let EDIT=null; // {coll,id,row}
+function openDlg(title, sub, body, row, onDel){
+  EDIT=row?{row,onDel}:null;
+  document.getElementById("dlgTitle").innerHTML=title+(sub?`<small>${sub}</small>`:"");
+  document.getElementById("dlgBody").innerHTML=body;
+  const del=document.getElementById("dlgDel");
+  del.hidden=true; del.onclick=null;
+  const saveBtn=document.getElementById("dlgSave");
+  saveBtn.textContent="Save"; saveBtn.classList.add("save"); saveBtn.removeAttribute("style");
+  document.getElementById("dlg").showModal();
+  document.getElementById("dlgCancel").onclick=()=>document.getElementById("dlg").close();
+  saveBtn.onclick=()=>{ if(EDITOR.validate().ok){EDITOR.commit(); document.getElementById("dlg").close();} else toast(EDITOR.validate().msg,true); };
+}
+let EDITOR={validate:()=>({ok:true}), commit:()=>{}};
+
+/* money */
+const PRESETS={
+  vaccine:{type:"expense",category:"Medication",note:"vaccination bill — "},
+  drug:{type:"expense",category:"Medication",note:"bird drug — "},
+  feedbags:{type:"expense",category:"Feed",note:"feed purchase — "},
+  dayold:{type:"expense",category:"Chick purchase",note:"day-old chicks — "},
+  transport:{type:"expense",category:"Utilities",note:"transport — "},
+  labour:{type:"expense",category:"Labor",note:"labour — "},
+  familyIn:{type:"income",category:"Family money",note:"family put in — "},
+  loanOut:{type:"expense",category:"Loan repayment",note:"repaid — "},
+  eggCrate:{type:"income",category:"Egg sales",note:"egg sale — "},
+  birdSale:{type:"income",category:"Bird sales",note:"bird sale — "},
+  manure:{type:"income",category:"Manure sales",note:"manure sale — "}
+};
+function applyPreset(k){
+  const p=PRESETS[k]; if(!p) return;
+  document.getElementById("f_Type").value=p.type;
+  const sel=document.getElementById("f_Category");
+  if([...sel.options].some(o=>o.value===p.category)) sel.value=p.category;
+  document.getElementById("f_Note").value=p.note;
+  document.getElementById("f_Amount").focus();
+}
+function setFeedBasis(b){ P.__feedBasis=b; save(); }
+async function backupNow(){
+  try{
+    const r=await fetch("/api/data"); const t=await r.text();
+    // sanity: refuse to write an obviously broken file
+    const j=JSON.parse(t);
+    if(!j.pv_financials) throw new Error("file looks broken - no financials");
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([t],{type:"application/json"}));
+    a.download="farm-backup-"+new Date().toISOString().slice(0,10)+".json";
+    document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){ alert("Backup failed: "+e.message); }
+}
+/* cash-flow calendar: every money date in the next 3 weeks, in one glance */
+function cashCalendar(){
+  const today=new Date();
+  const rows=[];
+  M.loans.forEach(l=>{
+    if(!l.paid&&l.dueDate) rows.push({wh:l.dueDate,l:(l.lender||"loan")+" — pay "+N(l.repayAmount),dir:"out"});
+    if(!l.paid&&l.borrowedDate&&new Date(l.borrowedDate)>today) rows.push({wh:l.borrowedDate,l:(l.lender||"loan")+" — money lands "+N(l.amount),dir:"in"});
+  });
+  if(M.daysLeft<=2) rows.push({wh:null,l:"feed store "+(M.daysLeft<=0?"is dry — restock today ("+(M.feedT.supplier||"supplier")+")":"runs out in "+Math.ceil(M.daysLeft)+" day"+(Math.ceil(M.daysLeft)===1?"":"s")),dir:"out"});
+  rows.sort((a,b)=>(a.wh||"9")<(b.wh||"9")?-1:1);
+  const soon=rows.filter(r=>{try{return !r.wh||(new Date(r.wh)-today)/864e5<=21;}catch(_){return true;}});
+  const later=rows.filter(r=>!soon.includes(r));
+  if(!rows.length) return "";
+  return `<div class="card"><h3>The next few weeks — money dates</h3>
+  ${soon.map(r=>`<div class="alertRow" style="border-left-color:${r.dir==="in"?"var(--pine)":"var(--yolk)"}"><div><b>${r.wh?D(r.wh):"now"}</b> ${r.dir==="in"?"· money in":"· money out"}<span>${r.l}</span></div></div>`).join("")}
+  ${later.length?`<div class="alertRow warn"><div><b>On the horizon</b><span>${later.map(r=>(r.wh?D(r.wh)+" · ":"")+r.l).join(" · ")}</span></div></div>`:""}
+  <p class="note">Borrowed money is debt, not income — it lands, it gets spent, the honest record is the repayment date. <a class="cread" data-note="sec-loans">why</a></p></div>`;
+}
+function fmtBig(x){ return x>=10000? (x/1000).toFixed(1).replace(/\.0$/,"")+"k" : String(Math.round(x)); }
+function formFin(id, preset){
+  const r=id&&P.pv_financials.find(x=>x.id===id);
+  EDITOR={validate:()=>num("Amount")>0?{ok:true}:{ok:false,msg:"amount must be more than zero"},
+    commit:()=>{const o=r||{id:newId(),source:"manual",batchId:P.pv_batches[0].id,version:1,createdAt:new Date().toISOString()};
+      Object.assign(o,{date:val("Date")||new Date().toISOString().slice(0,10),type:val("Type"),category:val("Category")||"Other",amount:num("Amount"),note:val("Note")||""});
+      stamp(o); if(!r)P.pv_financials.push(o); save();}};
+  openDlg(r?"Edit money record":"Record money in / out", r?"edit the row — it saves to farm-live.json":"pick the kind of bill or sale below — the rest fills itself",
+    `<div class="full" style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px">
+      <button type="button" class="iconbtn" onclick="applyPreset('vaccine')">vaccination bill</button>
+      <button type="button" class="iconbtn" onclick="applyPreset('drug')">bird drug</button>
+      <button type="button" class="iconbtn" onclick="applyPreset('feedbags')">feed bags</button>
+      <button type="button" class="iconbtn" onclick="applyPreset('dayold')">day-old chicks</button>
+      <button type="button" class="iconbtn" onclick="applyPreset('transport')">transport</button>
+      <button type="button" class="iconbtn" onclick="applyPreset('labour')">labour</button>
+      <button type="button" class="iconbtn" onclick="applyPreset('familyIn')">family put in</button>
+      <button type="button" class="iconbtn" onclick="applyPreset('loanOut')">repaid a loan</button>
+      <button type="button" class="iconbtn" onclick="applyPreset('eggCrate')">egg sale</button>
+      <button type="button" class="iconbtn" onclick="applyPreset('birdSale')">bird sale</button>
+      <button type="button" class="iconbtn" onclick="applyPreset('manure')">manure sale</button>
+    </div>`+
+    fld("Date","date",r?D(r.date):new Date().toISOString().slice(0,10))+
+    fld("Type","sel",r?r.type:"expense",{opts:["expense","income"]})+
+    fld("Category","sel",r?r.category:"Feed",{opts:["Feed","Chick purchase","Medication","Equipment","Supplements","Utilities","Labor","Loan repayment","Family money","Egg sales","Bird sales","Manure sales","Other"]})+
+    fld("Amount","number",r?r.amount:"")+
+    fld("Note","area",r?r.note:"",{extra:'placeholder="what was it for?"'}),
+    r, ()=>delRec("pv_financials",r.id,true));
+  if(!r&&preset&&PRESETS[preset]) applyPreset(preset);
+}
+/* eggs */
+function formEgg(id){
+  const r=id&&P.pv_egg_log.find(x=>x.id===id);
+  EDITOR={validate:()=>{
+      if(num("CollectedCrates")>0||num("CollectedLoose")>0||(num("SoldCrates")||0)+(num("SoldLoose")||0)>0){}
+      else return {ok:false,msg:"log at least one egg (collected or sold)"};
+      const d=val("Date");
+      if(d&&d>new Date().toISOString().slice(0,10)) return {ok:false,msg:"that date is in the future — mistakes happen, use the real day"};
+      const dup=(!r)&&P.pv_egg_log.some(e=>D(e.date)===d);
+      if(dup) return {ok:false,msg:"a collection for this date already exists — edit that one instead (or change the date)"};
+      return {ok:true};
+    },
+    commit:()=>{const o=r||{id:newId(),batchId:P.pv_batches[0].id,collectedLoose:0,soldCrates:0,soldLoose:0,broken:0,ownUse:0,pricePerCrate:M.set.defaultCratePrice,buyer:"",notes:"",version:1,createdAt:new Date().toISOString()};
+      Object.assign(o,{date:val("Date")||new Date().toISOString().slice(0,10),collectedCrates:num("CollectedCrates"),collectedLoose:num("CollectedLoose")||(o.collectedLoose||0),soldCrates:num("SoldCrates"),soldLoose:num("SoldLoose"),broken:num("Broken"),ownUse:num("OwnUse"),pricePerCrate:num("PricePerCrate")||o.pricePerCrate,notes:val("Notes")||"",buyer:val("Buyer")||""});
+      stamp(o); if(!r)P.pv_egg_log.push(o); syncEggSale(o); save();}};
+  openDlg(r?"Edit egg collection":"Log egg collection","crates take decimals — 0.5 = 15 eggs",
+    fld("Date","date",r?D(r.date):new Date().toISOString().slice(0,10))+
+    fld("CollectedCrates","number",r?r.collectedCrates:"")+
+    fld("CollectedLoose","number",r?r.collectedLoose:"")+
+    fld("SoldCrates","number",r?r.soldCrates:"")+
+    fld("SoldLoose","number",r?r.soldLoose:"")+
+    fld("Broken","number",r?r.broken:"")+
+    fld("OwnUse","number",r?r.ownUse:"")+
+    fld("PricePerCrate","number",r?r.pricePerCrate:M.set.defaultCratePrice)+
+    fld("Buyer","text",r?r.buyer:"",{extra:'placeholder="who took the eggs?"'})+
+    fld("Notes","area",r?r.notes:""),
+    r, ()=>delRec("pv_egg_log",r.id,true));
+}
+/* feed */
+function formFeed(id, prefillSupplier){
+  const r=id&&P.pv_feed_log.find(x=>x.id===id);
+  const ft=(Array.isArray(P.pv_feed.types)?P.pv_feed.types[0]:P.pv_feed.types);
+  EDITOR={validate:()=>num("Bags")>0&&num("Cost")>0?{ok:true}:{ok:false,msg:"bags and cost are needed"},
+    commit:()=>{const bags=num("Bags"),kg=num("Kgs")||bags*25;
+      if(!r){ ft.stockKg=M.feedKg+kg; ft.lastRestock=val("Date"); ft.asOf=val("Date"); ft.updatedAt=new Date().toISOString(); ft.dailyKg=ft.dailyKg||M.perDay; }
+      const o=r||{id:newId(),action:"restock",supplier:"",lot:"",version:1,createdAt:new Date().toISOString()};
+      Object.assign(o,{date:val("Date")||new Date().toISOString().slice(0,10),feedId:ft.id,type:val("Type")||ft.type,bags,kg,cost:num("Cost"),supplier:val("Supplier")||ft.supplier||""});
+      stamp(o); if(!r)P.pv_feed_log.push(o); save();}};
+  openDlg(r?"Edit restock":"Log feed restock","adds to the store count on save",
+    fld("Date","date",r?D(r.date):new Date().toISOString().slice(0,10))+
+    fld("Type","sel",r?r.type:(ft.type||"Growers Mash"),{opts:[...new Set([ft.type||"Growers Mash","Growers Mash","Layers Mash","Chick Starter",r&&r.type].filter(Boolean))]})+
+    fld("Bags","number",r?r.bags:"")+
+    fld("Kgs","number",r?r.kg:"")+
+    fld("Cost","number",r?r.cost:"")+
+    fld("Supplier","text",r?r.supplier:(prefillSupplier||""),{extra:'placeholder="phone or name"'}),
+    r, ()=>delRec("pv_feed_log",r.id,true));
+}
+function adjustBirds(delta, why){
+  const b=P.pv_batches[0];
+  b.birdCount=Math.max(0, b.birdCount+delta);
+  stamp(b);
+}
+/* health */
+function formHealth(id){
+  const r=id&&P.pv_health_log.find(x=>x.id===id);
+  EDITOR={validate:()=>val("Product")||val("Notes")?{ok:true}:{ok:false,msg:"say what product or what happened"},
+    commit:()=>{const o=r||{id:newId(),batchId:P.pv_batches[0].id,durationDays:1,daysDone:[],version:1,createdAt:new Date().toISOString()};
+      const oldDead=(o.eventType==="Mortality")?(parseFloat(o.dosage)||0):0;
+      Object.assign(o,{date:val("Date")||new Date().toISOString().slice(0,10),eventType:val("EventType"),product:val("Product")||"",dosage:val("Dosage")||"1",durationDays:num("DurationDays")||1,notes:val("Notes")||""});
+      const newDead=(o.eventType==="Mortality")?(parseFloat(o.dosage)||0):0;
+      if(newDead!==oldDead) adjustBirds(oldDead-newDead, "mortality");
+      stamp(o); if(!r)P.pv_health_log.push(o); save();}};
+  openDlg(r?"Edit health event":"Log health event","mortality, treatment, vaccination, supplement",
+    fld("Date","date",r?D(r.date):new Date().toISOString().slice(0,10))+
+    fld("EventType","sel",r?r.eventType:"Treatment",{opts:["Mortality","Treatment","Vaccination","Supplement"]})+
+    fld("Product","text",r?r.product:"")+
+    fld("Dosage","text",r?r.dosage:(r?"":"1"),{extra:'placeholder="mortality: number of birds"'})+
+    fld("DurationDays","number",r?r.durationDays:1)+
+    fld("Notes","area",r?r.notes:"")+
+    `<p class="full savehint">a mortality entry moves the bird count down automatically</p>`,
+    r, ()=>delRec("pv_health_log",r.id,true));
+}
+/* schedule */
+function formSched(id){
+  const r=id&&P.pv_schedule.find(x=>x.id===id);
+  EDITOR={validate:()=>val("Name")?{ok:true}:{ok:false,msg:"what is the task called?"},
+    commit:()=>{const o=r||{id:newId(),batchId:P.pv_batches[0].id,version:1,createdAt:new Date().toISOString()};
+      Object.assign(o,{day:num("Day"),date:val("Date")||o.date,name:val("Name"),type:val("Type")||"Task",route:val("Route")||"",note:val("Note")||"",done:!!val("Done"),doneDate:val("Done")?(val("DoneDate")||new Date().toISOString().slice(0,10)):""});
+      o.day||(o.day=Math.round((new Date(o.date)-M.start)/864e5));
+      stamp(o); if(!r)P.pv_schedule.push(o); save();}};
+  openDlg(r?"Edit schedule item":"Add schedule item","vaccines, deworming, feed switch",
+    fld("Name","text",r?r.name:"")+
+    fld("Type","sel",r?r.type:"Vaccination",{opts:["Vaccination","Task"]})+
+    fld("Date","date",r?D(r.date):"")+
+    fld("Day","number",r?r.day:"")+
+    fld("Route","text",r?r.route:"")+
+    fld("Note","area",r?r.note:"")+
+    fld("Done","chk",r&&r.done)+
+    fld("DoneDate","date",r&&r.doneDate?D(r.doneDate):""),
+    r, ()=>delRec("pv_schedule",r.id,true));
+}
+/* loans */
+function loanRepaid(l){
+  /* how much of this loan shows repaid in the money log — first trust rows tagged (loan:id), then name, then amount when names collide */
+  const rows=(P.pv_financials||[]).filter(f=>f.type==="expense"&&f.category==="Loan repayment");
+  let sum=0;
+  rows.forEach(f=>{
+    const note=String(f.note||"").toLowerCase();
+    if(note.includes("loan:"+l.id)){ sum+=f.amount; return; }
+    if(/loan:[a-z0-9]/.test(note)) return; /* tagged rows count under their tag only */
+    const hits=(P.pv_loans||[]).filter(x=>{const xl=String(x.lender||"").toLowerCase(); return xl&&note.includes(xl);});
+    if(hits.length===1&&hits[0].id===l.id) sum+=f.amount;
+    else if(hits.filter(x=>x.repayAmount===f.amount).length===1&&hits.find(x=>x.repayAmount===f.amount).id===l.id) sum+=f.amount;
+  });
+  return sum;
+}
+function loanShortfallNote(){
+  /* borrowed vs repaid warnings, farmer words */
+  const lines=[];
+  (P.pv_loans||[]).forEach(l=>{
+    if(l.paid && (l.repayAmount||0) < (l.amount||0) && loanRepaid(l) < (l.amount||0)) lines.push(`<b>${l.lender}</b>: borrowed ${N(l.amount)}, ${N(loanRepaid(l))} shows repaid, and the loan is ticked paid — confirm nothing (or ${N(l.amount-loanRepaid(l))}) is still owed, or untick paid and keep repaying`);
+    if(!l.paid && (l.repayAmount||0) < (l.amount||0)) lines.push(`<b>${l.lender}</b>: the app recorded "to repay" as ${N(l.repayAmount)} against ${N(l.amount)} borrowed — check whether there is more to pay`);
+  });
+  /* unattributed repayment rows */
+  const att=(P.pv_loans||[]).reduce((a,l)=>a+loanRepaid(l),0);
+  const tot=(P.pv_financials||[]).filter(f=>f.type==="expense"&&f.category==="Loan repayment").reduce((a,f)=>a+f.amount,0);
+  if(tot-att>0) lines.push(`${N(tot-att)} of repayments in the money log don't name a lender in their note — put the lender's name in the note and it files under the right loan`);
+  return lines.length?`<p class="note">${lines.join("<br>")}</p>`:"";
+}
+function formLoanPay(id){
+  const l=P.pv_loans.find(x=>x.id===id); if(!l) return;
+  EDITOR={validate:()=>num("Amount")>0?{ok:true}:{ok:false,msg:"how much was paid?"},
+    commit:()=>{ P.pv_financials.push(stamp({id:newId(),date:val("Date")||new Date().toISOString().slice(0,10),type:"expense",category:"Loan repayment",amount:num("Amount"),note:"repaid — "+l.lender+" (loan:"+l.id+")",source:"manual",batchId:P.pv_batches[0].id,version:1,createdAt:new Date().toISOString()}));
+      if(loanRepaid(l)>=(l.repayAmount||0)&&!l.paid){ l.paid=true; l.paidDate=val("Date")||new Date().toISOString().slice(0,10); stamp(l); }
+      save();}};
+  openDlg("Record repayment to "+l.lender, "goes into the money log under Loan repayment",
+    fld("Amount","number","")+
+    fld("Date","date",new Date().toISOString().slice(0,10))+
+    `<p class="full savehint">borrowed ${N(l.amount)} · repaid so far ${N(loanRepaid(l))}</p>`);
+}
+function formLoan(id){
+  const l=id&&P.pv_loans.find(x=>x.id===id);
+  EDITOR={validate:()=>num("Amount")>0?{ok:true}:{ok:false,msg:"amount needed"},
+    commit:()=>{const o=l||{id:newId(),version:1,createdAt:new Date().toISOString()};
+      Object.assign(o,{lender:val("Lender"),amount:num("Amount"),repayAmount:num("Repay")||num("Amount"),dueDate:val("Due"),paid:!!val("Paid"),paidDate:val("Paid")?(val("PaidDate")||new Date().toISOString().slice(0,10)):""});
+      stamp(o); if(!l)P.pv_loans.push(o); save();}};
+  openDlg(l?"Edit loan":"Add loan","family, co-op, bank — anything borrowed",
+    fld("Lender","text",l?l.lender:"")+
+    fld("Amount","number",l?l.amount:"")+
+    fld("Repay","number",l?l.repayAmount:"")+
+    fld("Due","date",l?D(l.dueDate):"")+
+    fld("Paid","chk",l&&l.paid)+
+    fld("PaidDate","date",l&&l.paidDate?D(l.paidDate):""),
+    l, ()=>delRec("pv_loans",l.id,true));
+}
+/* reminders */
+function formRem(id){
+  const r=id&&P.pv_reminders.find(x=>x.id===id);
+  EDITOR={validate:()=>val("Text")?{ok:true}:{ok:false,msg:"reminder text needed"},
+    commit:()=>{const o=r||{id:newId(),version:1,createdAt:new Date().toISOString()};
+      Object.assign(o,{text:val("Text"),date:val("Date")||new Date().toISOString().slice(0,10)});
+      stamp(o); if(!r)P.pv_reminders.push(o); save();}};
+  openDlg(r?"Edit reminder":"Add reminder","wakes the Today tab when due",
+    fld("Text","text",r?r.text:"")+
+    fld("Date","date",r?D(r.date):""),
+    r, ()=>delRec("pv_reminders",r.id,true));
+}
+function delRec(coll,id,skipCount){
+  const a=arr(coll);
+  const i=a.findIndex(x=>x.id===id);
+  if(i<0) return;
+  const r=a[i];
+  const label=({pv_financials:"this money record",pv_egg_log:"this egg collection",pv_feed_log:"this restock",pv_health_log:"this health event",pv_schedule:"this schedule item",pv_loans:"this loan",pv_reminders:"this reminder"}[coll])||"this record";
+  const hint= coll==="pv_egg_log"&&((r.soldCrates||0)+(r.soldLoose||0))>0 ? " Its linked money row goes with it."
+    : coll==="pv_financials"&&r.linkId&&String(r.linkId).startsWith("egg:") ? " This money row mirrors an egg sale — to stop it re-appearing, clear the sale on that egg record." : "";
+  EDIT=null;
+  openDlg("Delete "+label, D(r.date||"")||"", `<p class="full" style="font-family:Georgia,serif;font-size:14.5px;line-height:1.5">Delete ${label}?${hint||""} This can't be undone once saved.</p>`);
+  const saveBtn=document.getElementById("dlgSave"); saveBtn.textContent="Delete"; saveBtn.style.background="var(--brick)";
+  EDITOR={validate:()=>({ok:true}), commit:()=>{
+    a.splice(i,1);
+    if(coll==="pv_health_log"&&r.eventType==="Mortality") adjustBirds(+(parseFloat(r.dosage)||0), "mortality deleted");
+    if(coll==="pv_egg_log"){
+      const li=(P.pv_financials||[]).findIndex(f=>f.linkId==="egg:"+id);
+      if(li>=0) P.pv_financials.splice(li,1);
+      syncAllEggSales();
+    }
+    if(coll==="pv_financials"&&r.linkId&&String(r.linkId).startsWith("egg:")){
+      /* keep the egg record the money row pointed at */
+      const e=(P.pv_egg_log||[]).find(x=>("egg:"+x.id)===r.linkId);
+      if(e) syncEggSale(e); /* restores a matching income row so the pair stays in step */
+    }
+    save();
+  }};
+}
+function editRec(coll,id){
+  ({pv_financials:formFin,pv_egg_log:formEgg,pv_feed_log:formFeed,pv_health_log:formHealth,pv_schedule:formSched,pv_loans:formLoan,pv_reminders:formRem})[coll](id);
+}
+/* farm settings */
+function formSet(){
+  const f=P.pv_farm, s=P.pv_settings, b=P.pv_batches[0];
+  EDITOR={validate:()=>{
+      if(num("BirdCount")<10) return {ok:false,msg:"bird count looks too small — count the house"};
+      if(num("CratePrice")<100) return {ok:false,msg:"crate price looks off"};
+      if(num("DailyKg")<1||num("EggsPerCrate")<1) return {ok:false,msg:"feed burn and eggs-per-crate are needed"};
+      return {ok:true};
+    },
+    commit:()=>{
+      Object.assign(b,{name:val("BatchName")||b.name,breed:val("Breed")||b.breed,birdCount:Math.round(num("BirdCount")),updatedAt:new Date().toISOString()}); stamp(b);
+      Object.assign(f,{name:val("FarmName")||f.name,ownerName:val("Owner")||f.ownerName,dailyFeedKgDefault:num("DailyKg"),defaultCratePrice:num("CratePrice"),eggsPerCrate:Math.round(num("EggsPerCrate")),lowFeedThresholdDays:Math.round(num("LowDays")),updatedAt:new Date().toISOString()});
+      Object.assign(P.pv_settings,{farmName:f.name,farmerName:f.ownerName,dailyFeedKg:num("DailyKg"),defaultCratePrice:num("CratePrice"),eggsPerCrate:Math.round(num("EggsPerCrate")),lowFeedThresholdDays:Math.round(num("LowDays"))});
+      const ft=(Array.isArray(P.pv_feed.types)?P.pv_feed.types[0]:P.pv_feed.types); ft.dailyKg=num("DailyKg"); stamp(ft);
+      save();
+    }};
+  openDlg("Farm settings","names, bird count, prices — the engine numbers",
+    fld("FarmName","text",f.name)+
+    fld("Owner","text",f.ownerName)+
+    fld("BatchName","text",b.name)+
+    fld("Breed","text",b.breed)+
+    fld("BirdCount","number",b.birdCount)+
+    fld("DailyKg","number",s.dailyFeedKg)+
+    fld("CratePrice","number",s.defaultCratePrice)+
+    fld("EggsPerCrate","number",s.eggsPerCrate)+
+    fld("LowDays","number",s.lowFeedThresholdDays)+
+    `<p class="full savehint">bird count here is \u201Cstanding today\u201D — raise it if birds return, adjust after any uncounted loss</p>`);
+}
+function printReport(){ fillPrint(); window.print(); }
+function fillPrint(){
+  const e=document.getElementById("printline");
+  if(e) e.textContent=`${M.farm.name} · ${M.farm.ownerName} · batch ${M.batch.name}, ${M.batch.birdCount} ${M.batch.breed} · day ${M.todayAge} · printed ${new Date().toDateString()}`;
+}
+function newer(a,b){ /* picks the fresher of two records by updatedAt, tie -> phone */
+  const ta=String(a.updatedAt||""), tb=String(b.updatedAt||"");
+  return ta>=tb? a : b;
+}
+const APPLOGS=["pv_financials","pv_health_log","pv_feed_log","pv_egg_log","pv_schedule","pv_reminders","pv_alerts","pv_dismissed"];
+async function importPhone(obj){
+  if(!obj||!obj.pv_farm||!(obj.pv_batches||obj.pv_settings)) return toast("that doesn't look like a PoultryVerse backup", true);
+  const added={}, merged=[]; let own=0, theirs=0;
+  APPLOGS.forEach(k=>{
+    const liveA=P[k]||[], phA=obj[k]||[];
+    const map=new Map(liveA.map(r=>[r.id,r]));
+    phA.forEach(r=>{ map.has(r.id)? map.set(r.id,newer(map.get(r.id),r)) : (theirs++, map.set(r.id,r)); });
+    liveA.forEach(r=>{ if(!phA.some(x=>x.id===r.id)) own++; else map.set(r.id,newer(map.get(r.id), r)); });
+    P[k]=[...map.values()];
+  });
+  /* mutable singletons: fresher updatedAt wins */
+  ["pv_farm","pv_settings"].forEach(k=>{
+    if(obj[k]&&P[k]) P[k]=newer(P[k],obj[k]);
+  });
+  const mergeById=(liveArr, phArr)=>{
+    const live=liveArr||[], ph=phArr||[];
+    const map=new Map(live.map(r=>[r.id,r]));
+    ph.forEach(r=>{ const ex=map.get(r.id); map.set(r.id, ex?newer(ex,r):r); });
+    return [...map.values()];
+  };
+  P.pv_batches=mergeById(P.pv_batches, obj.pv_batches);
+  if(obj.pv_feed&&P.pv_feed) P.pv_feed={types:mergeById(P.pv_feed.types, obj.pv_feed.types)};
+  P.__exported=new Date().toISOString();
+  P.pv_farm.lastBackup=new Date().toISOString().slice(0,10);
+  await save();
+  const n=syncAllEggSales();
+  rerender();
+  if(n>0) toast(`phone imported: ${theirs} new from the phone, ${n} money rows synced`);
+  else toast(`phone imported: ${theirs} new phone records, ${own} console-only records kept`);
+}
+function wireImport(){
+  const inp=document.getElementById("importFile");
+  if(!inp){ document.addEventListener("DOMContentLoaded", wireImport, {once:true}); return; }
+  inp.addEventListener("change", e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const rd=new FileReader();
+    rd.onload=()=>{ try{ importPhone(JSON.parse(rd.result)); }catch(x){ toast("could not read that file", true); } };
+    rd.readAsText(f); e.target.value="";
+  });
+}
+async function resetAll(){  if(!confirm("Reset all live records back to the original backup? Anything added since will be lost unless you downloaded farm-live.json.")) return;
+  try{
+    const r=await fetch("/api/reset",{method:"POST"});
+    P=await r.json(); serverMode(); toast("reset to original backup"); rerender();
+  }catch(e){ toast("reset failed — is server.py running?", true); }
+}
+function serverMode(){ SERVER=true; }
+
+/* ================= nav ================= */
+const secs=[...document.querySelectorAll("section")], links=[...document.querySelectorAll("nav a")];
+links.forEach(a=>a.addEventListener("click",e=>{
+  e.preventDefault(); history.replaceState(null,"",a.getAttribute("href"));
+  links.forEach(x=>x.classList.remove("on")); a.classList.add("on");
+  secs.forEach(s=>s.classList.toggle("on", s.id===a.getAttribute("href").slice(1)));
+  window.scrollTo({top:0});
+}));
+document.addEventListener("click",e=>{
+  const el=e.target.closest("[data-note]");
+  if(el){ e.preventDefault(); goNote(el.getAttribute("data-note")); }
+});
+load();
+wireImport();
+/* ================= GROW: statistics & plans ================= */
+/* ISA Brown reference lay curve, % hen-day production */
+function isaLay(day){
+  if(day<121) return 0;
+  if(day>420) return 70;
+  return Math.min(92, 92*(1-Math.exp(-(day-121)/26))*(1-Math.max(0,(day-360))*0.0006));
+}
+function planUI(){
+  const set=M.set, birds=M.batch.birdCount, avgEggPrice=(set.defaultCratePrice||4500)/set.eggsPerCrate;
+  /* feed economics */
+  const restocks=(P.pv_feed_log||[]).slice().sort((a,b)=>a.date<b.date?-1:1);
+  const lastCost=restocks.length? restocks[restocks.length-1].cost/restocks[restocks.length-1].kg : 0; // naira per kg
+  const eggsPerDay=b=>birds*isaLay(b)/100;
+  const feedCostPerEgg=d=>M.perDay*lastCost/Math.max(eggsPerDay(d),.5);
+  const marginEgg=d=>avgEggPrice-feedCostPerEgg(d);
+  const layNow=isaLay(M.todayAge);
+  const firstEggDate=M.eggs.length?M.eggs.map(e=>e.date).sort()[0]:null;
+
+  /* --- KPIs --- */
+  document.getElementById("planKpis").innerHTML=kp([
+    {n:layNow.toFixed(0)+"<small>%</small>", l:"LAY TODAY (breed ref)", s:"50% lands ~day 139", bad:layNow===0},
+    {n:N(marginEgg(160)+avgEggPrice>0?marginEgg(160):0).replace(/\u20A60$/,"\u20A6—"), l:"MARGIN / EGG @50%", s:"egg "+N(avgEggPrice)+" \u2212 feed "+N(Math.min(feedCostPerEgg(160),9999999))},
+    {n:N(marginEgg(155)*eggsPerDay(155)*30), l:"MONTHLY MARGIN @50%", s:"at 30-day month"},
+    {n:N(marginEgg(180)*eggsPerDay(180)*30), l:"MONTHLY MARGIN @70%", s:"week ~26 peak build"},
+  ]);
+
+  /* --- lay curve chart --- */
+  const pts=[];
+  for(let d=110; d<=Math.min(240,M.todayAge+30); d+=3) pts.push([d, isaLay(d), "d"+d]);
+  const actual=M.eggs.map(e=>[M.age(e.date), (e.collectedCrates*set.eggsPerCrate+e.collectedLoose)/birds*100, ""]);
+  const W=940,H=200, px=d=>18+(d-110)/(240-110)*(W-30), py=v=>H-24-v/100*(H-40);
+  const layChart=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block" role="img" aria-label="lay curve">
+    <line x1="18" y1="${py(50)}" x2="${W-12}" y2="${py(50)}" stroke="var(--yolk)" stroke-dasharray="2 3"/>
+    <text x="${W-12}" y="${py(50)-4}" font-size="9" fill="#8A6410" text-anchor="end">50% break-even zone</text>
+    <line x1="18" y1="40" x2="${px(139)}" y2="40" stroke="var(--line)" stroke-width="3" stroke-dasharray="1 0"/>
+    <path d="${pts.map((p,i)=>(i?"L":"M")+px(p[0]).toFixed(1)+","+py(p[1]).toFixed(1)).join(" ")}" fill="none" stroke="var(--moss)" stroke-width="1.6" stroke-dasharray="5 4"/>
+    <text x="${px(150)}" y="${py(isaLay(150))+14}" font-size="9.5" fill="var(--moss)">ISA Brown reference</text>
+    ${actual.map(a=>`<circle cx="${px(Math.max(110,Math.min(240,a[0])))}" cy="${py(Math.max(2,Math.min(100,a[1])))}" r="5" fill="var(--brick)"><title>${a[0]>110?"approx":"pre-lay"} · day ${a[0]}: ${a[1].toFixed(1)}% hen-day</title></circle>`).join("")}
+    ${actual.length?'<text x="26" y="20" font-size="9.5" fill="var(--brick)">● your logged collections</text>':''}
+    ${[120,140,160,180,200,220,240].map(d=>`<line x1="${px(d)}" y1="30" x2="${px(d)}" y2="46" stroke="var(--line)"/><text x="${px(d)}" y="${H-6}" font-size="9" fill="var(--dim)" text-anchor="middle">day ${d}</text>`).join("")}
+    <text x="18" y="${H-6}" font-size="9" fill="var(--dim)">green dashed = breed standard, red dots = your farm</text>
+  </svg>`;
+
+  /* --- break-even runway --- */
+  const horizon=90, runway=[];
+  let netNow=M.earned-M.spent;
+  for(let t=0;t<=horizon;t+=5){
+    const d=M.todayAge+t, lay=isaLay(d);
+    const rev=eggsPerDay(d)*avgEggPrice*t;
+    const feed=M.perDay*lastCost*t;
+    runway.push([t, netNow-feed+rev, "d"+(t)]);
+  }
+  const cross=runway.find(r=>r[1]>=0);
+  const rvals=runway.map(r=>r[1]);
+  const rspan=Math.max(Math.max(...rvals)-Math.min(...rvals),1);
+  const RW=940,RH=190, rx=t=>16+t/horizon*(RW-30),
+    rmin=Math.min(...rvals)-rspan*.06, rmax=Math.max(...rvals)+rspan*.08,
+    ry=v=>RH-30-(v-rmin)/((rmax-rmin)||1)*(RH-46);
+  const runwayChart=`<svg viewBox="0 0 ${RW} ${RH}" style="width:100%;display:block" role="img" aria-label="break-even runway">
+    <line x1="16" y1="${ry(0)}" x2="${RW-14}" y2="${ry(0)}" stroke="var(--ink)" opacity=".45"/>
+    <path d="${runway.map((p,i)=>(i?"L":"M")+rx(p[0]).toFixed(1)+","+ry(p[1]).toFixed(1)).join(" ")} L${rx(horizon)},${ry(Math.min(0,runway[0][1]))} L${rx(0)},${ry(Math.min(0,runway[0][1]))} Z" fill="var(--pine)" opacity=".08"/>
+    <path d="${runway.map((p,i)=>(i?"L":"M")+rx(p[0]).toFixed(1)+","+ry(p[1]).toFixed(1)).join(" ")}" fill="none" stroke="var(--pine)" stroke-width="2.2"/>
+    <text x="${rx(0)}" y="${ry(runway[0][1])-6}" font-size="9.5" fill="var(--dim)" font-weight="700">today: ${(netNow<0?"\u2212":"")+N(Math.abs(netNow))}</text>
+    ${cross?`<circle cx="${rx(cross[0])}" cy="${ry(cross[1])}" r="6" fill="var(--yolk)" stroke="var(--ink)"/><text x="${rx(cross[0])}" y="${ry(cross[1])+16}" font-size="10" font-weight="700" fill="var(--ink)" text-anchor="middle" text-anchor="middle">break-even ~day +${cross[0]}</text>`:`<text x="${RW/2}" y="${RH-36}" font-size="9.5" fill="var(--brick)" text-anchor="middle">no break-even inside 90 days on current numbers</text>`}
+    ${[0,30,60,90].map(t=>`<text x="${rx(t)}" y="${RH-8}" font-size="9" fill="var(--dim)" text-anchor="middle">+${t}d</text>`).join("")}
+    <text x="${RW-14}" y="${RH-8}" font-size="9" fill="var(--dim)" text-anchor="end">assumes breed-ramp lay ${'\u00B7'} feed ${N(lastCost)}/kg ${'\u00B7'} egg ${N(avgEggPrice)}</text>
+  </svg>`;
+
+  /* --- margin ladder --- */
+  const ladder=[40,50,60,70,80,90].map(l=>{
+    const f=M.perDay*lastCost/(birds*l/100);
+    return [l+"% lay","x", (avgEggPrice- f)*(set.eggsPerCrate), "var(--pine)"];
+  });
+  /* --- restock rhythm --- */
+  const iv=[]; for(let i=1;i<restocks.length;i++){ iv.push(Math.round((new Date(restocks[i].date)-new Date(restocks[i-1].date))/864e5)); }
+  const avgIv=iv.length? (iv.reduce((a,b)=>a+b,0)/iv.length) : 0;
+  const avgCover=restocks.length? restocks.reduce((a,r)=>a+(r.kg||0)/(M.perDay||1),0)/restocks.length : 0;
+
+  document.getElementById("planCharts").innerHTML=`
+    <div class="card"><h3>Lay curve — are you on the breed road?</h3>${layChart}
+    <p class="note">Each morning collection draws one red dot; log daily and your own curve replaces the green guesswork. The amber line is where money-covers-money starts (~50\u201355%).</p></div>
+    <div class="grid2">
+      <div class="card"><h3>Cash runway to break-even</h3>${runwayChart}
+      <p class="note">Today's hole is ${N(Math.abs(netNow))}. The green line is the payback path: eggs eating the debt at ${N(lastCost)}/kg feed.</p></div>
+      <div class="card"><h3>Profit ladder — margin per crate as lay builds</h3>${hbar(ladder, N)}
+      <p class="note">Feed per egg falls as lay rises: ${(M.perDay/Math.max(eggsPerDay(160),.5)).toFixed(2)} kg/egg at 50% \u2192 ${(M.perDay/eggsPerDay(180)).toFixed(2)} at 70%. One dead point of lay is worth ${N(M.set.eggsPerCrate*(avgEggPrice-M.perDay*lastCost/Math.max(eggsPerDay(160),.5)))} a day across a crate.</p></div>
+      <div class="card"><h3>Flock vitality — birds alive curve</h3>${birdsAlive()}
+      <p class="note">${M.mortBirds} birds lost and not replaced. Each loss costs roughly ${N(isaLay(200)*avgEggPrice)} in egg value every week it should have laid.</p></div>
+      <div class="card"><h3>Restock rhythm — supply chain health</h3>
+      <ul class="tl">
+        <li><span class="d">interval</span><span>average days between restocks</span><span class="r">${avgIv?avgIv.toFixed(0)+" d":"—"} ${avgIv&&avgCover&&avgIv<avgCover-1?'<span class="chip late">tight</span>':""}</span></li>
+        <li><span class="d">cover/buy</span><span>days of feed each restock adds</span><span class="r">${avgCover?avgCover.toFixed(1)+" d":"—"}</span></li>
+        <li><span class="d">price/kg</span><span>latest feed price paid</span><span class="r">${N(lastCost)}</span></li>
+        <li><span class="d">supplier</span><span>${M.feedT.supplier||"\u2014"}</span><span class="r">${M.feedT.supplier?"locked in":"gap!"}</span></li>
+      </ul>
+      <p class="note">Rhythm check: you buy about ${avgCover?avgCover.toFixed(0):"?"} days of cover every ${avgIv?avgIv.toFixed(0):"?"} days — meaning you drift toward empty between buys. Order when cover passes your supplier's delivery lag.</p></div>
+    </div>`;
+
+  /* --- plain-farmer insights --- */
+  const ins=[];
+  /* lay-rate alarm: if the last week has 3+ collections, compare to the breed ramp */
+  const weekEggs=(P.pv_egg_log||[]).filter(e=>(Date.now()-new Date(e.date))/864e5<=7);
+  if(weekEggs.length>=3){
+    const laid=weekEggs.reduce((a,e)=>a+(e.collectedCrates||0)*set.eggsPerCrate+(e.collectedLoose||0),0);
+    const span=Math.max(1,Math.min(7,Math.round((Date.now()-new Date(weekEggs.slice().sort((a,b)=>a.date<b.date?1:-1)[0].date))/864e5)+1));
+    const actual=laid/(birds*span)*100;
+    const ref=isaLay(M.todayAge);
+    if(actual<ref*0.85) ins.push(["crit", `RAMP ALERT: last week you laid ~${actual.toFixed(1)}% hen-day against breed expectation ${ref.toFixed(0)}%. If the house is quiet, look at feed (water first), heat, or new-stress day before blaming the birds.`]);
+    else ins.push(["ok", `Ramp check: ~${actual.toFixed(1)}% hen-day last week vs breed ${ref.toFixed(0)}% — on or above the curve (${laid} eggs over ${span} day${span>1?"s":""}). Keep the morning rounds coming.`]);
+  } else {
+    ins.push(["warn", `Ramp watch needs fuel: only ${weekEggs.length} collection${weekEggs.length===1?"":"s"} in the last 7 days. Morning rounds for two weeks make this alarm real — it's the one number that says if money is coming.`]);
+  }
+  if(M.daysLeft<=M.set.lowFeedThresholdDays) ins.push(["crit", `Feed floor: about ${Math.ceil(M.daysLeft)} day(s) left. Below ${M.set.lowFeedThresholdDays} days you are calling suppliers on a dead run — order when cover hits 4 days.`]);
+  if(firstEggDate) ins.push(["ok", `Lay confirmed day ${M.age(firstEggDate)} — right on the ISA calendar. Now the game is the ramp: 50% around day 139, 85%+ by week 26.`]);
+  ins.push([ "ok", `Economics of one egg at 70% lay: sell ${N(avgEggPrice)}, feed ${N(M.perDay*lastCost/eggsPerDay(180))} \u2192 margin ${N(marginEgg(180))}/egg = ${N(marginEgg(180)*set.eggsPerCrate)}/crate. At 70% lay that is about ${N(marginEgg(180)*eggsPerDay(180)*30)} a month.`]);
+  if(M.mortBirds>0) ins.push(["warn", `Mortality ${M.mortBirds}/${M.batch.birdCount} (${(M.mortBirds/M.batch.birdCount*100).toFixed(1)}%). Vendor-weak chicks are the known cause — demand a replacement policy on the next batch.`]);
+  ins.push(["ok", `Feed price watch: paying ${N(lastCost)}/kg (${N(lastCost*25)}/bag). Above ${N(560)}/kg re-negotiate or split suppliers — every ${N(50)}/kg rise costs ${N(M.perDay*50)}/day at today's burn.`]);
+  if(M.loansOpen.length) ins.push(["warn", `Open loans ${N(M.loansOpen.reduce((a,l)=>a+l.repayAmount,0))} (${M.loansOpen.map(l=>l.lender).join(", ")}). One good month of lay at 70% clears them — park egg cash for repayment first.`]);
+  ins.push(["ok", `Bird value: ${birds} hens at 75% lay give roughly ${Math.round(birds*.75*30).toLocaleString()} eggs (${Math.round(birds*.75*30/set.eggsPerCrate)} crates) a month. Bank the first crates into a feed float of at least 7 days + the loan, then reinvest.`]);
+  document.getElementById("planInsights").innerHTML=`
+    <div class="card"><h3>Batch 3 — the starter kit batch 2 just paid for</h3>
+    ${(()=>{ /* every lesson priced with this batch's own receipts */
+      const feedKg=(P.pv_feed_log||[]).reduce((s,r)=>s+(r.kg||0),0);
+      const bagList=(P.pv_feed_log||[]).map(r=>[r.cost/Math.max(r.bags||1,1)]);
+      const loose=(bag=>Math.min(...bag)-Math.max(...bag))(bagList.map(b=>b[0]));
+      const lateV=(M.late.length), onTv=(M.sched.filter(s=>s.done).length);
+      const k=[
+        ["Cash before day 1", N(M.spent)+" walked out of pocket before the first egg sold — batch 3 needs this waiting in the bank, not borrowed weekly at day "+M.todayAge+" of a "+(M.feedBasis==="both"?"tight":"tighter")+" race"],
+        ["Feed price discipline", "bags moved "+N(Math.max(...bagList.map(b=>b[0])))+" ↔ "+N(Math.min(...bagList.map(b=>b[0])))+" this batch alone ("+N(Math.abs(loose))+" swing). Buy the whole "+Math.round(feedKg)+" kg in 1–2 hits at hatch-day price, not 11 trips as hunger bites"],
+        ["Bird losses", M.mortBirds===0?"zero lost so far — whatever you did, do it again":"only "+M.mortBirds+" bird"+(M.mortBirds===1?"":"s")+" in "+M.todayAge+" days ("+(M.mortBirds/Math.max(M.batch.birdCount,1)*100).toFixed(1)+"%) — quarantine corner worked, price it in at "+N(Math.max(M.mortBirds,2)*2000)+" for the next batch"],
+        ["Vaccine calendar", lateV+" of "+onTv+" done doses slipped behind plan. Paper the next batch weekly (Mon/Wed checks) instead of the app's monthly reminders — every late dose is the cheap insurance you paid for not working"],
+        ["Where batch 3 money goes first", "the birds took "+N(M.cats["Chick purchase"]||0)+", feed "+N(M.cats.Feed||0)+" — order day-olds and starter together so the hump is one negotiation, not two"],
+        ["Income engine", M.eggsTotal+" eggs collected by day "+M.todayAge+" — batch 3 should build the buyer book BEFORE lay starts: "+((P.pv_egg_log||[]).length?1:0)+" named buyer so far, target 5"]
+      ];
+      return k.map(x=>`<div class="alertRow" style="border-left-color:var(--pine)"><div><b>${x[0]}:</b> <span style="font-size:12.5px">${x[1]}</span></div></div>`).join("");
+    })()}
+    </div>
+    <div class="card"><h3>What the numbers say — farmer notes</h3>
+    ${ins.map(i=>`<div class="alertRow ${i[0]==="crit"?"":i[0]==="warn"?"warn":""}" style="border-left-color:${i[0]==="crit"?"var(--brick)":i[0]==="warn"?"var(--yolk)":"var(--pine)"}"><div><b>${i[1]}</b></div></div>`).join("")}
+    <p class="note">These grow sharper as the log fills: morning rounds make every chart real. Goals locked in: 7-day feed float, loss under 3%, orders at 4-day cover, crates banked weekly.</p></div>`;
+}
+function birdsAlive(){
+  const set=P.pv_settings, birds0=554+M.mortBirds;
+  const deaths=M.mort.map(h=>[M.age(h.date),+h.dosage||0]).sort((a,b)=>a[0]-b[0]);
+  const W=940,H=120, px=d=>14+d/136*(W-26), py=v=>H-26-(v-500)/(560-500)*(H-40);
+  const sorted=[]; let cur=birds0;
+  deaths.forEach(dm=>{ sorted.push([dm[0],cur]); cur-=dm[1]; sorted.push([dm[0],cur]); });
+  sorted.push([Math.min(M.todayAge,136),cur]);
+  const up=x=>{ const before=sorted.filter(p=>p[0]<=x); return before[before.length-1][1]; };
+  let d="M"+px(0).toFixed(1)+","+py(birds0).toFixed(1)+" ";
+  sorted.forEach(p=>{ d+="L"+px(Math.max(0,Math.min(136,p[0]))).toFixed(1)+","+py(p[1]).toFixed(1)+" "; });
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block">
+    <line x1="14" y1="${py(M.batch.birdCount)}" x2="${W-12}" y2="${py(M.batch.birdCount)}" stroke="var(--yolk)" stroke-dasharray="2 3"/>
+    <text x="${W-12}" y="${py(M.batch.birdCount)-4}" font-size="9" fill="#8A6410" text-anchor="end">standing today: ${M.batch.birdCount}</text>
+    <path d="${d}" fill="none" stroke="var(--pine)" stroke-width="2.2"/>
+    ${[0,30,60,90,120].map(dd=>`<text x="${px(dd)}" y="${H-6}" font-size="9" fill="var(--dim)" text-anchor="middle">day ${dd}</text>`).join("")}
+    ${deaths.map(dm=>`<circle cx="${px(dm[0])}" cy="${py(up(dm[0]))}" r="4.5" fill="var(--brick)"><title>day ${dm[0]}: \u2212${dm[1]}</title></circle>`).join("")}
+  </svg>`;
+}
+
+/* ---------- Morning round: one form logs the whole walk-around ---------- */
+function formRound(def){
+  const today=new Date().toISOString().slice(0,10);
+  EDITOR={validate:()=>{
+      if((+num("RCrates")+ +num("RLoose")||0)===0 && !num("RDead") && !num("RFeed")) return {ok:false,msg:"log at least one thing from the round"};
+      return {ok:true};
+    },
+    commit:()=>{
+      const date=val("RDate")||today, crates=+num("RCrates")||0, loose=+num("RLoose")||0, dead=+num("RDead")||0, fed=+num("RFeed")||0, broken=+num("RBroken")||0, sold=+num("RSold")||0, buyer=val("RBuyer")||"";
+      if(crates||loose){ P.pv_egg_log.push(stamp({id:newId(),date,batchId:P.pv_batches[0].id,collectedCrates:crates,collectedLoose:0,soldCrates:sold,soldLoose:0,broken,ownUse:0,pricePerCrate:P.pv_settings.defaultCratePrice,buyer,notes:"morning round",version:1})); }
+      if(loose) P.pv_egg_log[P.pv_egg_log.length-1].collectedLoose=loose;
+      const eggRec=(crates||loose)?P.pv_egg_log[P.pv_egg_log.length-1]:null;
+      if(dead){ P.pv_health_log.push(stamp({id:newId(),date,batchId:P.pv_batches[0].id,eventType:"Mortality",product:val("RCause")||"morning round",dosage:String(dead),durationDays:1,daysDone:[],notes:"",version:1})); }
+      if(fed){ const ft=(Array.isArray(P.pv_feed.types)?P.pv_feed.types[0]:P.pv_feed.types); ft.stockKg=Math.max(0,(ft.stockKg||0)-fed); ft.asOf=date; ft.updatedAt=new Date().toISOString(); }
+      if(eggRec&&sold>0) syncEggSale(eggRec);
+      save();
+    }};
+  openDlg("Morning round — "+today, "eggs · losses · feed used in one save",
+    fld("RDate","date",today)+
+    fld("RCrates","number","",{extra:'placeholder="crates collected (0.5 = 15 eggs)"'})+
+    fld("RLoose","number","",{extra:'placeholder="loose eggs"'})+
+    fld("RBroken","number","",{extra:'placeholder="cracks/broken"'})+
+    fld("RDead","number","",{extra:'placeholder="birds found dead"'})+
+    fld("RCause","text","",{extra:'placeholder="if deaths: sign / guess"'})+
+    fld("RFeed","number","",{extra:`placeholder="kg fed (store shows ${M.feedKg} kg)"`})+
+    fld("RSold","number","",{extra:'placeholder="crates sold today, if any"'})+
+    fld("RBuyer","text","",{extra:'placeholder="sold to — name the buyer"'})+
+    `<p class="full savehint">saving adds eggs + records the sale + logs the loss + burns the store in one go</p>`);
+}
+
+</script>
+</body>
+</html>
